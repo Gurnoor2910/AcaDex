@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fee Ledger | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .ledger-record { margin-bottom: 3.5rem; border-left: 4px solid var(--border-bold); padding-left: 1.5rem; }
+    .ledger-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    
+    .status-badge { 
+      padding: 0.3rem 0.8rem; 
+      font-weight: 900; 
+      text-transform: uppercase; 
+      font-size: 0.7rem; 
+      border: 2px solid var(--border-bold); 
+      box-shadow: 2px 2px 0px var(--border-bold);
+    }
+    
+    .financial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; }
+    .metric-value { font-size: 1.8rem; font-weight: 900; -webkit-text-stroke: 1px var(--border-bold); line-height: 1; margin-top: 0.5rem; }
+    
+    @media (max-width: 768px) {
+      .ledger-header { flex-direction: column; gap: 1rem; border-bottom: 2px dashed var(--border); padding-bottom: 1rem; }
+      .ledger-header > div:last-child { text-align: left !important; }
+      .financial-grid { gap: 1.5rem; }
+      .metric-value { font-size: 1.5rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Institutional Liability Ledger</h2>
+          <p style="color: var(--text-secondary);">Structural audit of academic cycle commitments and payment history</p>
+        </div>
+      </div>
+
+      <div id="ledger-container">
+        <div class="glass-card" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">
+           Synchronizing with financial registry...
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Pay Overlay -->
+  <div id="pay-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="width: 100%; max-width: 420px;">
+        <h3 id="pay-modal-title" style="margin-bottom: 2rem; color: var(--primary); text-transform: uppercase; font-weight: 900;">Authorize Transaction</h3>
+        <form id="pay-form">
+            <input type="hidden" id="pay-record-id">
+            <div class="input-group">
+                <label>Institutional Amount (₹)</label>
+                <input type="number" id="pay-amount" required placeholder="0.00">
+                <div id="pay-hint" style="font-size: 0.7rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; margin-top: 8px;"></div>
+            </div>
+            <div class="input-group">
+                <label>Verification Method</label>
+                <select id="pay-mode" required>
+                    <option value="UPI">UPI / QR CODE</option>
+                    <option value="Card">CREDIT / DEBIT CARD</option>
+                    <option value="Bank Transfer">NET BANKING / NEFT</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 2; justify-content: center; height: 50px;">COMMIT PAYMENT</button>
+                <button type="button" class="btn btn-secondary" style="flex: 1; justify-content: center; height: 50px;" onclick="closePayModal()">CANCEL</button>
+            </div>
+        </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/fees.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (!user || user.role !== "student") window.location.href = "unauthorized.html";
+
+      await loadLedger();
+      
+      document.getElementById("pay-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = e.target.querySelector('button[type="submit"]');
+          const originalText = "COMMIT PAYMENT";
+          
+          btn.disabled = true; btn.innerText = "AUTHORIZING...";
+          
+          const recordId = document.getElementById("pay-record-id").value;
+          const amount = document.getElementById("pay-amount").value;
+          const mode = document.getElementById("pay-mode").value;
+          
+          try {
+              await FeesService.submitTransaction(recordId, amount, mode);
+              alert("PAYMENT DATA DISPATCHED. AWAITING SYSTEM CLEARANCE.");
+              closePayModal();
+              loadLedger();
+          } catch(err) { alert("AUTHENTICATION ERROR: " + err.message); }
+          finally { btn.disabled = false; btn.innerText = originalText; }
+      }
+    });
+
+    async function loadLedger() {
+        const container = document.getElementById("ledger-container");
+        try {
+            const records = await FeesService.getLedger();
+            if (!records || records.length === 0) {
+                container.innerHTML = `<div class="glass-card" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">
+                    No institutional liability cycles discovered for this account.
+                </div>`;
+                return;
+            }
+            container.innerHTML = records.map(r => renderRecordHTML(r)).join('');
+        } catch(e) {
+            container.innerHTML = `<div style="text-align: center; color: var(--danger); font-weight: 900; padding: 2rem;">REGISTRY SYNC FAILURE: ${e.message.toUpperCase()}</div>`;
+        }
+    }
+
+    function renderRecordHTML(r) {
+        const statusData = FeesService.getRecordStatus(r.status);
+        const hasPenalty = r.penaltyApplied && r.penaltyAmount > 0;
+        const txns = r.transactions || [];
+
+        return `
+            <div class="ledger-record">
+                <div class="ledger-header">
+                    <div>
+                        <h3 style="color: var(--primary); font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px;">${r.academicYear} | CYCLE SEMESTER ${r.semester}</h3>
+                        <div class="status-pill ${r.status === 'paid' ? 'pill-success' : (r.status === 'overdue' ? 'pill-danger' : 'pill-warning')}" style="margin-top: 0.5rem;">
+                            ${statusData.text.toUpperCase()}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Registry Deadline</div>
+                        <div style="font-size: 1rem; font-weight: 900; font-family: monospace; color: ${r.status === 'overdue' ? 'var(--danger)' : 'var(--text-primary)'};">
+                            ${new Date(r.dueDate).toLocaleDateString('en-GB')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="border-width: 2px;">
+                    <div class="financial-grid">
+                        <div>
+                            <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Assessed Liability</div>
+                            <div class="metric-value">₹${r.totalAmount.toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Verified Credits</div>
+                            <div class="metric-value" style="color: var(--success);">₹${r.paidAmount.toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Institutional Penalties</div>
+                            <div class="metric-value" style="color: ${hasPenalty ? 'var(--danger)' : 'var(--text-primary)'};">
+                                ₹${(r.penaltyAmount || 0).toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="background: var(--bg-primary); padding: 1.25rem; border: 2px solid var(--border-bold); box-shadow: 4px 4px 0px var(--border-bold);">
+                            <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Net Outstanding</div>
+                            <div class="metric-value" style="color: ${r.pendingAmount > 0 ? 'var(--primary)' : 'var(--success)'}; font-size: 2rem;">
+                                ₹${r.pendingAmount.toLocaleString()}
+                            </div>
+                            ${r.pendingAmount > 0 ? 
+                                `<button class="btn btn-primary" style="width: 100%; margin-top: 1.25rem; border-width: 2px; font-size: 0.8rem; justify-content: center; height: 45px;" 
+                                 onclick="openPayModal('${r.recordId}', '${r.academicYear} S${r.semester}', ${r.pendingAmount})">INITIATE PAYMENT</button>`
+                                : ''
+                            }
+                        </div>
+                    </div>
+
+                    ${txns.length > 0 ? `
+                        <div class="table-container" style="margin-top: 2rem; border-top: 2px solid var(--border-bold); padding-top: 1rem;">
+                            <table style="width: 100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Audit Mode</th>
+                                        <th style="text-align: right;">Verification</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${txns.sort((a,b) => new Date(b.paymentDate) - new Date(a.paymentDate)).map(t => {
+                                        const ts = FeesService.getTxnStatus(t.status);
+                                        return `
+                                            <tr>
+                                                <td style="font-size: 0.75rem; font-weight: 800; font-family: monospace;">${new Date(t.paymentDate).toLocaleDateString('en-GB')}</td>
+                                                <td style="font-weight: 900; font-size: 0.9rem;">₹${parseFloat(t.amountPaid).toLocaleString()}</td>
+                                                 <td style="font-weight: 800; font-size: 0.7rem; text-transform: uppercase;">${t.paymentMethod}</td>
+                                                <td style="text-align: right;">
+                                                    <span class="status-pill ${ts.color === '#ef4444' ? 'pill-danger' : (ts.color === '#22c55e' ? 'pill-success' : 'pill-secondary')}" style="font-size: 0.6rem; padding: 0.2rem 0.6rem;">
+                                                        ${ts.text.toUpperCase()}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function openPayModal(rid, label, balance) {
+        document.getElementById("pay-record-id").value = rid;
+        document.getElementById("pay-modal-title").innerText = `AUTHORIZE ${label}`;
+        document.getElementById("pay-hint").innerText = `OUTSTANDING LIABILITY: ₹${balance.toLocaleString()}`;
+        document.getElementById("pay-modal").style.display = "flex";
+    }
+    function closePayModal() { document.getElementById("pay-modal").style.display = "none"; }
+  </script>
+</body>
+</html>

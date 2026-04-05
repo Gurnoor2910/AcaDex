@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Bulletin | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Dispatch New Bulletin</h2>
+          <p style="color: var(--text-secondary);">Direct institutional communication to targeted academic clusters</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 750px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Bulletin Metadata</h3>
+          <form id="ann-form">
+            <div class="input-group">
+                <label>Bulletin Headline</label>
+                <input type="text" id="title" placeholder="e.g. SEMESTER EXAMINATION CALENDAR RELEASED" required>
+            </div>
+
+            <div class="input-group">
+                <label>Communication Content</label>
+                <textarea id="message" rows="6" placeholder="Construct your institutional message here..." required></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Target Audience Cluster</label>
+                  <select id="targetAudience" required>
+                    <option value="all">GLOBAL (EVERYONE)</option>
+                    <option value="students">STUDENT COHORT ONLY</option>
+                    <option value="specificCourse">SPECIFIC ACADEMIC PROGRAM</option>
+                  </select>
+                </div>
+                <div id="course-group" style="display: none;" class="input-group">
+                  <label>Select Program Track</label>
+                  <select id="course">
+                    <option value="">Fetching institutional programs...</option>
+                  </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Severity Mapping (Priority)</label>
+                  <select id="priority" required>
+                    <option value="Low">LOW SEVERITY (INFO)</option>
+                    <option value="Medium" selected>MEDIUM SEVERITY (ALERTS)</option>
+                    <option value="High">HIGH SEVERITY (CRITICAL)</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                   <label>Automatic Expiry Date</label>
+                   <input type="date" id="expiryDate">
+                </div>
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="submit-btn" style="flex: 2; justify-content: center; height: 55px; font-size: 1.1rem;">AUTHORIZE & PUBLISH</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        checkAuth();
+        await loadCourses();
+    });
+
+    document.getElementById("targetAudience").onchange = (e) => {
+        document.getElementById("course-group").style.display = e.target.value === "specificCourse" ? "block" : "none";
+    };
+
+    async function loadCourses() {
+        try {
+            const courses = await ApiClient.get("/courses/all");
+            const select = document.getElementById("course");
+            select.innerHTML = '<option value="">SELECT ACADEMIC TRACK</option>' + 
+                 courses.map(c => `<option value="${c.courseName}">${c.courseName.toUpperCase()}</option>`).join('');
+        } catch(e) { console.error("Course sync failure", e); }
+    }
+
+    document.getElementById("ann-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        const data = {
+            title: document.getElementById("title").value.toUpperCase(),
+            message: document.getElementById("message").value,
+            targetAudience: document.getElementById("targetAudience").value,
+            priority: document.getElementById("priority").value,
+            isActive: true
+        };
+        
+        if (data.targetAudience === "specificCourse") {
+            data.course = document.getElementById("course").value;
+        }
+        
+        const expiry = document.getElementById("expiryDate").value;
+        if (expiry) data.expiryDate = `${expiry}T23:59:59`;
+
+        try {
+            btn.disabled = true;
+            btn.innerText = "TRANSMITTING TO REGISTRY...";
+            await AnnouncementService.create(data);
+            alert("BULLETIN AUTHORIZED & DEPLOYED.");
+            window.location.href = "announcements-management.html";
+        } catch(err) { 
+            alert("TRANSMISSION ERROR: " + err.message); 
+            btn.disabled = false;
+            btn.innerText = "AUTHORIZE & PUBLISH";
+        }
+    };
+  </script>
+</body>
+</html>

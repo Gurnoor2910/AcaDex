@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modify Bulletin | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Modify Institutional Bulletin</h2>
+          <p style="color: var(--text-secondary);">Recalibrate communication parameters or update visibility status</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← DISCARD CHANGES</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 750px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Update Parameters</h3>
+          <form id="edit-ann-form">
+            <input type="hidden" id="ann-id">
+            
+            <div class="input-group">
+                <label>Bulletin Headline</label>
+                <input type="text" id="title" required placeholder="e.g. AMENDED EXAMINATION SCHEDULE">
+            </div>
+
+            <div class="input-group">
+                <label>Communication Content</label>
+                <textarea id="message" rows="6" required placeholder="Update your communication content..."></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Target Audience Cluster</label>
+                  <select id="targetAudience" required>
+                    <option value="all">GLOBAL (EVERYONE)</option>
+                    <option value="students">STUDENT COHORT ONLY</option>
+                    <option value="specificCourse">SPECIFIC ACADEMIC PROGRAM</option>
+                  </select>
+                </div>
+                <div id="course-group" style="display: none;" class="input-group">
+                  <label>Select Program Track</label>
+                  <select id="course">
+                    <option value="">Fetching institutional programs...</option>
+                  </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Severity Mapping (Priority)</label>
+                  <select id="priority" required>
+                    <option value="Low">LOW SEVERITY (INFO)</option>
+                    <option value="Medium">MEDIUM SEVERITY (ALERTS)</option>
+                    <option value="High">HIGH SEVERITY (CRITICAL)</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                   <label>Expiration Override</label>
+                   <input type="date" id="expiryDate">
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1.5rem;">
+                <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="isActive" style="width: 20px; height: 20px; margin: 0;">
+                    <span style="font-weight: 800; text-transform: uppercase; font-size: 0.8rem;">MAINTAIN VISIBILITY (ACTIVE)</span>
+                </label>
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="save-btn" style="flex: 2; justify-content: center; height: 55px; font-size: 1.1rem;">COMMIT MODIFICATIONS</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        checkAuth();
+        await loadCourses();
+        const urlParams = new URLSearchParams(window.location.search);
+        const annId = urlParams.get("id");
+        if (!annId) {
+            alert("CRITICAL ERROR: No communication ID provided");
+            window.location.href = "announcements-management.html";
+            return;
+        }
+
+        document.getElementById("ann-id").value = annId;
+
+        // Fetch data
+        try {
+            const ann = await AnnouncementService.getById(annId);
+            populateForm(ann);
+        } catch(e) {
+            alert("FETCH ERROR: " + e.message);
+            window.location.href = "announcements-management.html";
+        }
+    });
+
+    async function loadCourses() {
+        try {
+            const courses = await ApiClient.get("/courses/all");
+            const select = document.getElementById("course");
+            select.innerHTML = '<option value="">SELECT ACADEMIC TRACK</option>' + 
+                 courses.map(c => `<option value="${c.courseName}">${c.courseName.toUpperCase()}</option>`).join('');
+        } catch(e) { console.error("Course sync failure", e); }
+    }
+
+    function populateForm(ann) {
+        document.getElementById("title").value = ann.title;
+        document.getElementById("message").value = ann.message;
+        document.getElementById("targetAudience").value = ann.targetAudience;
+        document.getElementById("priority").value = ann.priority;
+        document.getElementById("isActive").checked = (ann.isActive !== false);
+        
+        if (ann.targetAudience === "specificCourse") {
+            document.getElementById("course-group").style.display = "block";
+            if(ann.course) document.getElementById("course").value = ann.course;
+        }
+
+        if (ann.expiryDate) {
+            document.getElementById("expiryDate").value = ann.expiryDate.split("T")[0];
+        }
+    }
+
+    document.getElementById("targetAudience").onchange = (e) => {
+        document.getElementById("course-group").style.display = e.target.value === "specificCourse" ? "block" : "none";
+    };
+
+    document.getElementById("edit-ann-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("save-btn");
+        const id = document.getElementById("ann-id").value;
+        const data = {
+            title: document.getElementById("title").value.toUpperCase(),
+            message: document.getElementById("message").value,
+            targetAudience: document.getElementById("targetAudience").value,
+            priority: document.getElementById("priority").value,
+            isActive: document.getElementById("isActive").checked,
+            lastUpdatedAt: new Date().toISOString()
+        };
+        
+        if (data.targetAudience === "specificCourse") {
+            data.course = document.getElementById("course").value;
+        }
+        
+        const expiry = document.getElementById("expiryDate").value;
+        if (expiry) {
+            const today = new Date(); 
+            today.setHours(0,0,0,0);
+            const expDate = new Date(expiry);
+            if (expDate < today) {
+                alert("VALIDATION ERROR: Activation date cannot exist in the past.");
+                return;
+            }
+            data.expiryDate = `${expiry}T23:59:59`;
+        }
+
+        try {
+            btn.disabled = true;
+            btn.innerText = "COMMITING UPDATES...";
+            await AnnouncementService.update(id, data);
+            alert("BULLETIN MODIFICATIONS AUTHORIZED.");
+            window.location.href = "announcements-management.html";
+        } catch(err) { 
+            alert("TRANSMISSION ERROR: " + err.message); 
+            btn.disabled = false;
+            btn.innerText = "COMMIT MODIFICATIONS";
+        }
+    };
+  </script>
+</body>
+</html>

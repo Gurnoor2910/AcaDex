@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instructional Command | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .ticker-box { 
+      background: var(--bg-primary); 
+      border: 2px solid var(--border-bold); 
+      padding: 1rem; 
+      margin-top: 1rem; 
+      font-weight: 900; 
+      text-transform: uppercase; 
+      font-size: 0.75rem; 
+      box-shadow: inset 3px 3px 0px rgba(0,0,0,0.05);
+    }
+    
+    .bulletin-node { 
+      padding: 1.25rem; 
+      border: 2px solid var(--border-bold); 
+      background: var(--bg-secondary); 
+      box-shadow: 4px 4px 0px var(--border-bold); 
+      margin-bottom: 1.25rem;
+      transition: transform 0.2s ease;
+    }
+    .bulletin-node:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--border-bold); }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="container">
+        <div class="header-row">
+          <div>
+            <h2>Faculty Dashboard</h2>
+            <p style="color: var(--text-secondary);">Manage your classes, students, and marks</p>
+          </div>
+          <div class="header-buttons" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="window.location.href='mark-attendance.html'" style="border-color: var(--success); color: var(--success); font-weight: 900; height: 50px;"><i class="fas fa-bolt"></i> MARK ATTENDANCE</button>
+            <button class="btn btn-primary" onclick="window.location.href='marks-management.html'" style="height: 50px;"><i class="fas fa-bolt"></i> ENTER MARKS</button>
+          </div>
+        </div>
+
+        <div class="grid-auto" style="margin-top: 1.5rem;">
+          <div class="glass-card stat-card">
+            <span class="stat-label">Students</span>
+            <span class="stat-value" id="stat-students">0</span>
+            <div class="ticker-box">MY STUDENTS</div>
+          </div>
+          <div class="glass-card stat-card">
+            <span class="stat-label">Average Marks</span>
+            <span class="stat-value" id="stat-marks" style="color: var(--primary);">0</span>
+            <div class="ticker-box">CLASS PERFORMANCE</div>
+          </div>
+          <div class="glass-card stat-card">
+            <span class="stat-label">Attendance</span>
+            <span class="stat-value" id="stat-attendance" style="color: var(--success);">0%</span>
+            <div class="ticker-box">AVG ATTENDANCE</div>
+          </div>
+          <div class="glass-card stat-card" style="border-color: var(--primary);">
+            <span class="stat-label">Next Class</span>
+            <span class="stat-value" id="next-class-info" style="font-size: 1.2rem; color: var(--text-primary); -webkit-text-stroke: 0; line-height: 1.2;">LOADING...</span>
+            <div class="ticker-box" style="background: var(--primary); color: white;">UPCOMING SESSION</div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top: 2.5rem;">
+          <!-- Critical Risk Registry -->
+          <div class="glass-card" style="border-width: 2px;">
+            <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Performance Deviation Audit</h3>
+            <p style="font-size: 0.65rem; font-weight: 900; color: var(--danger); margin-bottom: 1.5rem; text-transform: uppercase; border-bottom: 2px dashed var(--border-bold); padding-bottom: 0.5rem;">CANDIDATES BELOW 60% THRESHOLD</p>
+            <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+              <table>
+                <thead><tr><th>Candidate Target</th><th style="text-align: right;">Abs. Performance</th></tr></thead>
+                <tbody id="low-perf-body">
+                  <tr><td colspan="2" style="text-align: center; padding: 3rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Scanning across academic clusters...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Distributed Analytics -->
+          <div class="glass-card" style="border-width: 2px;">
+             <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Instructional Consistency</h3>
+             <div id="no-data-msg" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Establishing subject benchmarks...</div>
+             <div style="height: 300px;"><canvas id="classBenchChart"></canvas></div>
+          </div>
+
+          <!-- Bulletins Archive -->
+          <div class="glass-card" style="border-width: 2px;">
+             <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Institutional Dispatches</h3>
+             <div id="ann-preview" style="display: flex; flex-direction: column;">
+               <p style="color: var(--text-secondary); padding: 2rem; text-align: center; font-weight: 800;">SYNCHRONIZING BULLETINS...</p>
+             </div>
+             <button class="btn btn-secondary" onclick="window.location.href='announcements-management.html'" style="margin-top: 2rem; width: 100%; justify-content: center; font-weight: 900; height: 50px;">ACCESS GLOBAL DISPATCHES <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+
+        <!-- Cohort Registry -->
+        <div class="glass-card" style="margin-top: 3.5rem; border-width: 2px; padding: 0; overflow: hidden;">
+          <div style="padding: 2rem; border-bottom: 2px solid var(--border-bold);">
+              <h3 style="text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px; margin: 0;">Verified Cohort Registry</h3>
+          </div>
+          <div class="table-container">
+             <table id="assigned-students">
+              <thead>
+                <tr>
+                  <th>Institutional ID</th>
+                  <th>Candidate Identity</th>
+                  <th>Academic Track Cluster</th>
+                  <th style="text-align: right;">Analytical Operations</th>
+                </tr>
+              </thead>
+              <tbody id="assigned-students-body">
+                  <tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Authenticating assigned cohort registry...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/dashboard.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script src="../js/timetable.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      await loadDashboard();
+      await loadRecentAnnouncements();
+      await loadStudents();
+    });
+
+    async function loadRecentAnnouncements() {
+        try {
+            const list = await AnnouncementService.getAll();
+            const preview = document.getElementById("ann-preview");
+            preview.innerHTML = list.slice(0, 3).map(a => `
+                <div class="bulletin-node" style="border-left-width: 8px; border-left-color: ${AnnouncementService.getPriorityColor(a.priority)};">
+                   <div style="font-weight: 900; font-size: 0.6rem; text-transform: uppercase; color: ${AnnouncementService.getPriorityColor(a.priority)}; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                       <div style="width: 8px; height: 8px; border-radius: 50%; background: ${AnnouncementService.getPriorityColor(a.priority)};"></div>
+                       ${a.priority} PROTOCOL
+                   </div>
+                   <div style="font-weight: 900; font-size: 1rem; text-transform: uppercase; line-height: 1.2;">${a.title}</div>
+                </div>
+            `).join('') || '<p style="text-align: center; padding: 2rem; font-weight: 800;">REGISTRY CLEAR.</p>';
+        } catch(e) { console.error("Bulletin retrieval failure", e); }
+    }
+
+    async function loadDashboard() {
+        try {
+            const data = await DashboardService.fetchFacultyData();
+            const isDark = document.body.classList.contains('dark-theme');
+            const labelColor = isDark ? "#EEEEEE" : "#111111";
+            const gridColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+
+            document.getElementById("stat-students").innerText = data.totalStudents;
+            document.getElementById("stat-marks").innerText = data.averageClassMarks;
+            document.getElementById("stat-attendance").innerText = `${data.attendancePercentage}%`;
+
+            try {
+                const tt = await TimetableService.getMyFacultyTT();
+                const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                const today = days[new Date().getDay()];
+                const todayClasses = tt.filter(e => e.day === today);
+                if (todayClasses.length > 0) {
+                    const next = todayClasses[0]; 
+                    document.getElementById("next-class-info").innerText = `${next.timeSlot} | ${next.subject.toUpperCase()}`;
+                } else {
+                    document.getElementById("next-class-info").innerText = "CLEARED TODAY";
+                }
+            } catch(ttErr) { console.warn("Scheduler link failure", ttErr); }
+
+            const lowPerfBody = document.getElementById("low-perf-body");
+            if (data.lowPerformers.length > 0) {
+                lowPerfBody.innerHTML = data.lowPerformers.map(p => `
+                    <tr>
+                        <td style="font-weight: 900; text-transform: uppercase;">${p.name}</td>
+                        <td style="text-align: right;"><span class="status-pill" style="background: var(--danger); color: white; border: none; font-weight: 900; padding: 0.2rem 0.5rem; text-transform: uppercase;">${p.avg}%</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                lowPerfBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 4rem; font-weight: 900; color: var(--success); text-transform: uppercase;">All candidates verified at benchmark</td></tr>';
+            }
+
+            document.getElementById("no-data-msg").style.display = "none";
+            
+            Chart.defaults.color = labelColor;
+            Chart.defaults.font.weight = 'bold';
+            
+            if (window.benchChart) window.benchChart.destroy();
+            
+            const ctx = document.getElementById('classBenchChart');
+            window.benchChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data.subjectPerformance).map(l => l.toUpperCase()),
+                    datasets: [{
+                        label: 'PERFORMANCE QUOTIENT (%)',
+                        data: Object.values(data.subjectPerformance),
+                        backgroundColor: 'var(--primary)',
+                        borderColor: 'var(--border-bold)',
+                        borderWidth: 3,
+                        borderRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            max: 100, 
+                            grid: { color: gridColor }, 
+                            ticks: { color: labelColor, font: { weight: 'bold' } } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: labelColor, font: { weight: '900', size: 10 } } 
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        } catch(e) { console.error("Analytic compute failure", e); }
+    }
+
+    async function loadStudents() {
+        try {
+            const students = await ApiClient.get("/faculty/my-students");
+            const tbody = document.getElementById("assigned-students-body");
+            if (!students || students.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No candidates assigned to instructional protocol.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = students.map(s => {
+              const sid = String(s.studentId || "N/A");
+              return `
+                <tr>
+                  <td style="font-family: monospace; font-weight: 900; opacity: 0.8;">#${sid.substring(0,10)}</td>
+                  <td style="font-weight: 900; text-transform: uppercase; color: var(--primary);">${s.name || 'ANONYMOUS'}</td>
+                  <td><span class="status-pill" style="background: var(--bg-primary); border: 2px solid var(--border-bold); font-weight: 800; text-transform: uppercase; font-size: 0.65rem;">${s.course || 'GENERAL'}</span></td>
+                  <td style="text-align: right;">
+                    <a href="submissions.html?id=${s.uid || sid}" class="btn btn-secondary" style="font-size: 0.65rem; padding: 0.4rem 0.8rem; border-color: var(--primary); color: var(--primary);"><i class="fas fa-file-signature"></i> GRADE</a>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+        } catch(e) { console.error("Cohort retrieval failure", e); }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semester Registry | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .cycle-card { 
+      border: 2px solid var(--border-bold); 
+      box-shadow: var(--shadow); 
+      background: var(--bg-secondary); 
+      padding: 2.5rem; 
+      margin-bottom: 2.5rem;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Semester Registry Oversight</h2>
+          <p id="course-name-title" style="color: var(--text-secondary); font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">Initializing academic cycle parameters...</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← RETURN TO PROGRAMS</button>
+      </div>
+
+      <div class="glass-card cycle-card" style="border-style: dashed; max-width: 650px;">
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <div style="font-size: 2.5rem;">⚙️</div>
+            <div>
+                <h3 style="text-transform: uppercase; font-weight: 900; margin: 0; letter-spacing: -0.5px;">Program Cycle Automation</h3>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; font-weight: 700; text-transform: uppercase;">
+                    Academic cycles are synchronized with core program duration. Structural integrity is maintained via the central registry.
+                </p>
+            </div>
+        </div>
+      </div>
+
+      <div class="glass-card" style="border-width: 2px; padding: 0; overflow: hidden;">
+        <div style="padding: 1.5rem 2rem; border-bottom: 2px solid var(--border-bold); background: var(--bg-secondary);">
+            <h3 style="text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px; margin: 0;">Defined Academic Cycles</h3>
+        </div>
+        <div class="table-container">
+          <table id="sem-table">
+            <thead>
+              <tr>
+                <th>Registry Code</th>
+                <th>Academic Cycle</th>
+                <th>Registry Date</th>
+                <th style="text-align: right;">Structural Operations</th>
+              </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Fetching semester cluster logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modification Overlay -->
+  <div id="edit-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="max-width: 450px; width: 90%; border-width: 2px;">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; color: var(--primary);">Modify Lifecycle</h3>
+        <form id="edit-sem-form">
+          <input type="hidden" id="editSemId">
+          <div class="input-group">
+            <label>Update Cycle Sequence (Number)</label>
+            <input type="number" id="editSemNumber" required min="1" max="12" style="font-weight: 900; font-size: 1.2rem;">
+          </div>
+          <div style="display: flex; gap: 1.5rem; margin-top: 3rem;">
+            <button type="submit" class="btn btn-primary" id="save-btn" style="flex: 2; justify-content: center; height: 50px;">COMMIT CHANGES</button>
+            <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; justify-content: center; height: 50px;">CANCEL</button>
+          </div>
+        </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script>
+    checkAuth();
+    CourseService.initSync();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const courseId = urlParams.get("courseId");
+
+    if (!courseId) {
+        alert("CRITICAL ERROR: No program mapping selected for audit.");
+        window.location.href = "course-management.html";
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            await CourseService.loadCourseData();
+            window.renderUI();
+        } catch(e) { console.error("Registry access failure", e); }
+    });
+
+    window.renderUI = function() {
+        const course = (window.courseData || []).find(c => c.id === courseId);
+        if (!course) return;
+        
+        document.getElementById("course-name-title").innerText = `Structural Cycles for ${course.courseName.toUpperCase()}`;
+        
+        const sems = (course.semesters || []).sort((a,b) => a.semesterNumber - b.semesterNumber);
+        const tbody = document.querySelector("#sem-table tbody");
+        
+        if (!sems || sems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No semesters defined for this institutional program.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = sems.map(s => `
+            <tr id="row-${s.id}">
+                <td style="font-family: monospace; font-weight: 900; font-size: 0.75rem; opacity: 0.7;">REG_${s.id.substring(0,10).toUpperCase()}</td>
+                <td style="font-weight: 900; color: var(--primary); text-transform: uppercase; font-size: 1.1rem;">CYCLE SEMESTER ${s.semesterNumber}</td>
+                <td style="font-weight: 800; font-family: monospace;">${new Date(s.createdAt).toLocaleDateString('en-GB')}</td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button onclick="openEditSem('${s.id}')" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.7rem;">ADJUST</button>
+                        <button onclick="manageSubs('${s.id}')" class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.7rem; border-color: var(--border-bold);">UNITS →</button>
+                        <button onclick="deleteSem('${s.id}')" class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger); padding: 0.4rem 1rem; font-size: 0.7rem;">PURGE</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    window.openEditSem = function(id) {
+        const course = (window.courseData || []).find(c => c.id === courseId);
+        if (!course) return;
+        const s = course.semesters.find(x => x.id === id);
+        if(!s) return;
+        document.getElementById("editSemId").value = s.id;
+        document.getElementById("editSemNumber").value = s.semesterNumber;
+        document.getElementById("edit-modal").style.display = "flex";
+    };
+
+    window.closeEditModal = () => document.getElementById("edit-modal").style.display = "none";
+
+    document.getElementById("edit-sem-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("save-btn");
+        const sid = document.getElementById("editSemId").value;
+        const num = document.getElementById("editSemNumber").value;
+        try {
+            btn.disabled = true;
+            btn.innerText = "TRANSMITTING...";
+            await CourseService.updateSemester(courseId, sid, num);
+            alert("ACADEMIC CYCLE UPDATED.");
+            closeEditModal();
+        } catch(e) { 
+            alert("REGISTRY ERROR: " + e.message); 
+            btn.disabled = false;
+            btn.innerText = "COMMIT CHANGES";
+        }
+    };
+
+    window.manageSubs = function(semId) {
+        window.location.href = `subject-management.html?courseId=${courseId}&semesterId=${semId}`;
+    };
+
+    window.deleteSem = async function(sid) {
+        if(!confirm("CRITICAL: Permanently purge this academic cycle? This will recursively destroy ALL hosted units and marks. Proceed?")) return;
+        try {
+            await CourseService.deleteItem(`courses/${courseId}/semesters/${sid}`);
+        } catch(e) { alert("DATA DELETION FAILURE: " + e.message); }
+    };
+  </script>
+</body>
+</html>

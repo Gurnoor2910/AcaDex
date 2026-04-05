@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modify Task Registry | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Modify Academic Task</h2>
+          <p style="color: var(--text-secondary);">Redefine instructional parameters for an existing task cluster</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 750px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Update Task Parameters</h3>
+          <form id="assignment-form">
+            <div class="input-group">
+                <label>Assignment Headline</label>
+                <input type="text" id="a-title" required placeholder="e.g. PROJECT VIVA: NEURAL NETWORKS">
+            </div>
+
+            <div class="input-group">
+                <label>Institutional Guidelines & Instructions</label>
+                <textarea id="a-desc" rows="6" placeholder="Construct your assignment parameters here..." required></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Academic Program</label>
+                  <select id="a-course" required onchange="loadStructure()" disabled>
+                    <option value="">SELECT PROGRAM</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label>Target Cycle (Semester)</label>
+                  <select id="a-sem" required disabled>
+                    <option value="">SELECT CYCLE</option>
+                  </select>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Academic Unit (Subject)</label>
+                <select id="a-subject" required disabled>
+                    <option value="">SELECT UNIT</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Submission Deadline</label>
+                  <input type="datetime-local" id="a-due" required>
+                </div>
+                <div class="input-group">
+                   <label>Maximum Quotient (Marks)</label>
+                   <input type="number" id="a-marks" min="1" max="100" value="100" required>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Institutional Material (Current/New)</label>
+                <div id="current-file" style="margin-bottom: 10px; font-size: 0.75rem; font-weight: 800; color: var(--info);"></div>
+                <input type="file" id="a-file" style="padding: 0.5rem; background: var(--bg-primary);">
+                <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 5px; font-weight: 700;">UPLOAD TO OVERWRITE PREVIOUS SOURCE MATERIAL (OPTIONAL)</p>
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="submit-btn" style="flex: 2; justify-content: center; height: 55px; font-size: 1.1rem;">COMMIT TASK UPDATES</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let assignmentId;
+    let currentData;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user && user.role === 'student') window.location.href = "assignments.html";
+      
+      const params = new URLSearchParams(window.location.search);
+      assignmentId = params.get('id');
+      if (!assignmentId) window.location.href = "assignments.html";
+
+      try {
+          const list = await AssignmentService.getAll();
+          currentData = list.find(a => a.id === assignmentId);
+          if (!currentData) throw new Error("Task identification failure");
+
+          // Pre-fill
+          document.getElementById("a-title").value = currentData.title;
+          document.getElementById("a-desc").value = currentData.description;
+          document.getElementById("a-marks").value = currentData.maxMarks;
+          
+          if (currentData.dueDate) {
+              const dt = new Date(currentData.dueDate);
+              dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+              document.getElementById("a-due").value = dt.toISOString().slice(0, 16);
+          }
+
+          if (currentData.fileUrl) {
+              document.getElementById("current-file").innerHTML = `CURRENT ATTACHMENT: <a href="${currentData.fileUrl}" target="_blank" style="text-decoration: underline;">[VIEW ASSET]</a>`;
+          }
+
+          // Read-only selections
+          document.getElementById("a-course").innerHTML = ` <option>${currentData.courseId || 'CORE'}</option>`;
+          document.getElementById("a-sem").innerHTML = `<option>CYCLE ${currentData.semester || 'N/A'}</option>`;
+          document.getElementById("a-subject").innerHTML = `<option>${currentData.subjectName || 'GENERAL'}</option>`;
+
+      } catch(e) { console.error("Initialization failure", e); alert("FETCH ERROR: " + e.message); }
+    });
+
+    document.getElementById("assignment-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        const fileInput = document.getElementById("a-file");
+        
+        try {
+            btn.disabled = true;
+            btn.innerText = "TRANSMITTING UPDATES...";
+
+            let fileUrl = currentData.fileUrl || "";
+            if (fileInput.files.length > 0) {
+                btn.innerText = "UPLOADING NEW MATERIAL...";
+                const file = fileInput.files[0];
+                const storageRef = firebase.storage().ref();
+                const fileRef = storageRef.child(`assignments/${Date.now()}_${file.name}`);
+                const snapshot = await fileRef.put(file);
+                fileUrl = await snapshot.ref.getDownloadURL();
+            }
+
+            const updates = {
+                title: document.getElementById("a-title").value.toUpperCase(),
+                description: document.getElementById("a-desc").value,
+                dueDate: document.getElementById("a-due").value.replace('T', ' ') + ":00",
+                maxMarks: parseInt(document.getElementById("a-marks").value),
+                fileUrl: fileUrl
+            };
+
+            await AssignmentService.update(assignmentId, updates);
+            alert("✓ ACADEMIC TASK REGISTRY UPDATED SUCCESSFULLY.");
+            window.location.href = "assignments.html";
+        } catch(err) { 
+            alert("COMMIT FAILURE: " + err.message); 
+            btn.disabled = false;
+            btn.innerText = "COMMIT TASK UPDATES";
+        }
+    };
+  </script>
+</body>
+</html>

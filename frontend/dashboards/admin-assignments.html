@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Global Task Registry | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>All Assignments</h2>
+          <p style="color: var(--text-secondary);">View and manage all student assignments</p>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-top: 2.5rem; padding: 0; overflow: hidden; border-width: 2px;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Subject</th>
+                <th>Due Date</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assignments-tbody">
+               <tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Synchronizing global registry...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user.role !== 'admin') window.location.href = "unauthorized.html";
+      
+      try {
+          const assignments = await AssignmentService.getAll();
+          const tbody = document.getElementById("assignments-tbody");
+          
+          if(!assignments || assignments.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Registry clear.</td></tr>';
+              return;
+          }
+
+          tbody.innerHTML = assignments.map(a => `
+              <tr>
+                  <td>
+                    <div style="font-weight: 900; text-transform: uppercase; color: var(--primary);">${a.title}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 700;">OWNER: ${a.ownerName || 'SYSTEM'}</div>
+                  </td>
+                  <td style="font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">${a.subjectName}</td>
+                  <td style="font-weight: 900; font-family: monospace;">${new Date(a.dueDate).toLocaleDateString('en-GB')}</td>
+                  <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <a href="submissions.html?id=${a.id}" class="btn btn-secondary" style="font-size: 0.6rem; padding: 0.4rem 0.6rem;"><i class="fas fa-file-invoice"></i> DETAILS</a>
+                        <a href="edit-assignment.html?id=${a.id}" class="btn btn-primary" style="font-size: 0.6rem; padding: 0.4rem 0.6rem; background: var(--info); border-color: var(--border-bold);"><i class="fas fa-edit"></i></a>
+                        <button onclick="deleteAssignment('${a.id}')" class="btn btn-primary" style="font-size: 0.6rem; padding: 0.4rem 0.6rem; background: var(--danger); border-color: var(--border-bold);"><i class="fas fa-trash"></i></button>
+                    </div>
+                  </td>
+              </tr>
+          `).join('');
+      } catch(e) { console.error(e); }
+    });
+
+    async function deleteAssignment(id) {
+        if(!confirm("TERMINATE GLOBAL TASK?")) return;
+        try {
+            await AssignmentService.delete(id);
+            alert("TASK PURGED.");
+            window.location.reload();
+        } catch(e) { alert(e.message); }
+    }
+  </script>
+</body>
+</html>

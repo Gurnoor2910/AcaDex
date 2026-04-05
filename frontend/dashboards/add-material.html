@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Asset | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Dispatch Academic Material</h2>
+          <p style="color: var(--text-secondary);">Authorize and upload instructional resources to the institutional repository</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 750px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Asset Metadata</h3>
+          <form id="material-form">
+            <div class="input-group">
+                <label>Resource Title</label>
+                <input type="text" id="m-title" required placeholder="e.g. ADVANCED CALCULUS: LECTURE 04">
+            </div>
+
+            <div class="input-group">
+                <label>Instructional Description (Optional)</label>
+                <textarea id="m-desc" rows="4" placeholder="Brief summary of the academic resource..."></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Academic Program</label>
+                  <select id="m-course" required onchange="loadStructure()">
+                    <option value="">SELECT PROGRAM</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label>Target Cycle (Semester)</label>
+                  <select id="m-sem" required onchange="loadSubjects()">
+                    <option value="">SELECT CYCLE</option>
+                  </select>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Academic Unit (Subject)</label>
+                <select id="m-subject" required>
+                    <option value="">SELECT UNIT</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Structural Resource Hub (Asset File)</label>
+                <input type="file" id="m-file" required>
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="submit-btn" style="flex: 2; justify-content: center; height: 55px; font-size: 1.1rem;">AUTHORIZE & UPLOAD MATERIAL</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let facultyStruct = [];
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user && user.role === 'student') window.location.href = "materials.html";
+      
+      try {
+          facultyStruct = await ApiClient.get("/faculty/my-structure");
+          const crSelect = document.getElementById("m-course");
+          crSelect.innerHTML = '<option value="">SELECT PROGRAM</option>' + 
+              facultyStruct.map(c => `<option value="${c.courseId}">${c.courseName.toUpperCase()}</option>`).join('');
+      } catch(e) { console.error("Identity load failure", e); }
+    });
+
+    window.loadStructure = () => {
+        const cid = document.getElementById("m-course").value;
+        const semSelect = document.getElementById("m-sem");
+        semSelect.innerHTML = '<option value="">SELECT CYCLE</option>';
+        document.getElementById("m-subject").innerHTML = '<option value="">SELECT UNIT</option>';
+
+        if(!cid) return;
+        const course = facultyStruct.find(c => c.courseId === cid);
+        if (course) {
+            semSelect.innerHTML += course.semesters.map(s => 
+                `<option value="${s.id}" data-num="${s.semesterNumber}">CYCLE SEMESTER ${s.semesterNumber}</option>`
+            ).join('');
+        }
+    };
+
+    window.loadSubjects = () => {
+        const cid = document.getElementById("m-course").value;
+        const semId = document.getElementById("m-sem").value;
+        const subSelect = document.getElementById("m-subject");
+        subSelect.innerHTML = '<option value="">SELECT UNIT</option>';
+
+        if(!cid || !semId) return;
+        const course = facultyStruct.find(c => c.courseId === cid);
+        if (course) {
+            const sem = course.semesters.find(s => s.id === semId);
+            if (sem) {
+                subSelect.innerHTML += sem.subjects.map(su => 
+                    `<option value="${su.id}">${su.subjectName.toUpperCase()}</option>`
+                ).join('');
+            }
+        }
+    };
+
+    document.getElementById("material-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        const subSelect = document.getElementById("m-subject");
+        const semSelect = document.getElementById("m-sem");
+        const fileInput = document.getElementById("m-file");
+        const originalText = "AUTHORIZE & UPLOAD ASSET";
+        
+        if (!subSelect.value) { alert("VALIDATION ERROR: Academic unit must be specified."); return; }
+        if (!fileInput.files.length) { alert("VALIDATION ERROR: Target asset must be attached."); return; }
+
+        try {
+            btn.disabled = true;
+            btn.innerText = "AUTHENTICATING UPLOAD STREAM...";
+            
+            // 1. Upload to Firebase Storage
+            console.log("Uploading...");
+            const file = fileInput.files[0];
+            const storageRef = storage.ref(`materials/${Date.now()}_${file.name}`);
+            const snapshot = await storageRef.put(file);
+            const downloadUrl = await snapshot.ref.getDownloadURL();
+
+            btn.innerText = "COMMITTING DATA TO REGISTRY...";
+
+            // 2. Commit to Backend Registry
+            const data = {
+                title: document.getElementById("m-title").value.toUpperCase(),
+                description: document.getElementById("m-desc").value,
+                courseId: document.getElementById("m-course").value,
+                semester: parseInt(semSelect.options[semSelect.selectedIndex].getAttribute('data-num')),
+                subjectId: subSelect.value,
+                subjectName: subSelect.options[subSelect.selectedIndex].text,
+                fileUrl: downloadUrl
+            };
+
+            const response = await MaterialService.create(data);
+            console.log("Firestore response:", response);
+            alert("ACADEMIC MATERIAL AUTHORIZED & UPLOADED.");
+            window.location.href = "materials.html";
+        } catch(err) { 
+            console.error("TRANSMISSION ERROR: ", err);
+            alert("TRANSMISSION ERROR: " + err.message); 
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
+    };
+  </script>
+</body>
+</html>

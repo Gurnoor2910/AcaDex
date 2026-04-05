@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instructional Tasks | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>My Assignments</h2>
+          <p style="color: var(--text-secondary);">Manage and grade student assignments</p>
+        </div>
+        <button class="btn btn-primary" onclick="window.location.href='add-assignment.html'"><i class="fas fa-bolt"></i> CREATE ASSIGNMENT</button>
+      </div>
+
+      <div class="glass-card" style="margin-top: 2.5rem; padding: 0; overflow: hidden; border-width: 2px;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Subject</th>
+                <th>Due Date</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assignments-tbody">
+               <tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Synchronizing instructional registry...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user.role !== 'faculty' && user.role !== 'admin') window.location.href = "unauthorized.html";
+      
+      try {
+          const assignments = await AssignmentService.getAll();
+          const tbody = document.getElementById("assignments-tbody");
+          
+          // Filter by owner (Faculty UID)
+          const myTasks = assignments.filter(a => a.createdBy === user.uid);
+
+          if(!myTasks || myTasks.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No deployments discovered under your credentials.</td></tr>';
+              return;
+          }
+
+          tbody.innerHTML = myTasks.map(a => `
+              <tr>
+                  <td>
+                    <div style="font-weight: 900; text-transform: uppercase; color: var(--primary);">${a.title}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; font-weight: 700; text-transform: uppercase;">${a.description || 'NO METADATA'}</div>
+                  </td>
+                  <td style="font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">${a.subjectName}</td>
+                  <td style="font-weight: 900; font-family: monospace;">${new Date(a.dueDate).toLocaleDateString('en-GB')}</td>
+                  <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <a href="submissions.html?id=${a.id}" class="btn btn-secondary" style="font-size: 0.65rem; padding: 0.4rem 0.8rem; border-color: var(--primary); color: var(--primary);"><i class="fas fa-file-signature"></i> GRADE</a>
+                        <a href="edit-assignment.html?id=${a.id}" class="btn btn-primary" style="font-size: 0.65rem; padding: 0.4rem 0.8rem; background: var(--info); border-color: var(--border-bold);"><i class="fas fa-edit"></i></a>
+                        <button onclick="deleteAssignment('${a.id}')" class="btn btn-primary" style="font-size: 0.65rem; padding: 0.4rem 0.8rem; background: var(--danger); border-color: var(--border-bold);"><i class="fas fa-trash"></i></button>
+                    </div>
+                  </td>
+              </tr>
+          `).join('');
+      } catch(e) { console.error(e); }
+    });
+
+    async function deleteAssignment(id) {
+        if(!confirm("CONFIRM TASK PURGE?")) return;
+        try {
+            await AssignmentService.delete(id);
+            alert("✓ TASK SUCCESSFULLY PURGED.");
+            window.location.reload();
+        } catch(e) { alert("PURGE FAILURE: " + e.message); }
+    }
+  </script>
+</body>
+</html>

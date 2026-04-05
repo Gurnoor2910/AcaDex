@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Assignment | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Dispatch New Assignment</h2>
+          <p style="color: var(--text-secondary);">Authorize and deploy new academic tasks to targeted student cohorts</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 750px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Task Parameters</h3>
+          <form id="assignment-form">
+            <div class="input-group">
+                <label>Assignment Headline</label>
+                <input type="text" id="a-title" required placeholder="e.g. PROJECT VIVA: NEURAL NETWORKS">
+            </div>
+
+            <div class="input-group">
+                <label>Institutional Guidelines & Instructions</label>
+                <textarea id="a-desc" rows="6" placeholder="Construct your assignment parameters here..." required></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Academic Program</label>
+                  <select id="a-course" required onchange="loadStructure()">
+                    <option value="">SELECT PROGRAM</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label>Target Cycle (Semester)</label>
+                  <select id="a-sem" required onchange="loadSubjects()">
+                    <option value="">SELECT CYCLE</option>
+                  </select>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Academic Unit (Subject)</label>
+                <select id="a-subject" required>
+                    <option value="">SELECT UNIT</option>
+                </select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Submission Deadline</label>
+                  <input type="datetime-local" id="a-due" required>
+                </div>
+                <div class="input-group">
+                   <label>Maximum Quotient (Marks)</label>
+                   <input type="number" id="a-marks" min="1" max="100" value="100" required>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Institutional Material (Attachment)</label>
+                <input type="file" id="a-file" style="padding: 0.5rem; background: var(--bg-primary);">
+                <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 5px; font-weight: 700;">OPTIONAL: UPLOAD TASK REFERENCE / INSTRUCTIONAL SYLLABUS</p>
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1.5rem;">
+                <button type="submit" class="btn btn-primary" id="submit-btn" style="flex: 2; justify-content: center; height: 55px; font-size: 1.1rem;">AUTHORIZE & PUBLISH TASK</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let facultyStruct = [];
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user && user.role === 'student') window.location.href = "assignments.html";
+      
+      try {
+          // Fetch faculty-specific structure
+          facultyStruct = await ApiClient.get("/faculty/my-structure");
+          const crSelect = document.getElementById("a-course");
+          crSelect.innerHTML = '<option value="">SELECT PROGRAM</option>' + 
+              facultyStruct.map(c => `<option value="${c.courseId}">${c.courseName.toUpperCase()}</option>`).join('');
+      } catch(e) { console.error("Identity load failure", e); }
+    });
+
+    window.loadStructure = () => {
+        const cid = document.getElementById("a-course").value;
+        const semSelect = document.getElementById("a-sem");
+        semSelect.innerHTML = '<option value="">SELECT CYCLE</option>';
+        document.getElementById("a-subject").innerHTML = '<option value="">SELECT UNIT</option>';
+
+        if(!cid) return;
+        const course = facultyStruct.find(c => c.courseId === cid);
+        if (course) {
+            semSelect.innerHTML += course.semesters.map(s => 
+                `<option value="${s.id}" data-num="${s.semesterNumber}">CYCLE SEMESTER ${s.semesterNumber}</option>`
+            ).join('');
+        }
+    };
+
+    window.loadSubjects = () => {
+        const cid = document.getElementById("a-course").value;
+        const semId = document.getElementById("a-sem").value;
+        const subSelect = document.getElementById("a-subject");
+        subSelect.innerHTML = '<option value="">SELECT UNIT</option>';
+
+        if(!cid || !semId) return;
+        const course = facultyStruct.find(c => c.courseId === cid);
+        if (course) {
+            const sem = course.semesters.find(s => s.id === semId);
+            if (sem) {
+                subSelect.innerHTML += sem.subjects.map(su => 
+                    `<option value="${su.id}">${su.subjectName.toUpperCase()}</option>`
+                ).join('');
+            }
+        }
+    };
+
+    document.getElementById("assignment-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        const subSelect = document.getElementById("a-subject");
+        const semSelect = document.getElementById("a-sem");
+        const fileInput = document.getElementById("a-file");
+        const originalText = "AUTHORIZE & PUBLISH TASK";
+        
+        if (!subSelect.value) { alert("VALIDATION ERROR: Academic unit must be specified."); return; }
+
+        try {
+            btn.disabled = true;
+            btn.innerText = "TRANSMITTING TO REGISTRY...";
+
+            let fileUrl = "";
+            if (fileInput.files.length > 0) {
+                btn.innerText = "UPLOADING INSTITUTIONAL MATERIAL...";
+                const file = fileInput.files[0];
+                const storageRef = firebase.storage().ref();
+                const fileRef = storageRef.child(`assignments/${Date.now()}_${file.name}`);
+                const snapshot = await fileRef.put(file);
+                fileUrl = await snapshot.ref.getDownloadURL();
+            }
+
+            const data = {
+                title: document.getElementById("a-title").value.toUpperCase(),
+                description: document.getElementById("a-desc").value,
+                courseId: document.getElementById("a-course").value,
+                semester: parseInt(semSelect.options[semSelect.selectedIndex].getAttribute('data-num')),
+                subjectId: subSelect.value,
+                subjectName: subSelect.options[subSelect.selectedIndex].text,
+                dueDate: document.getElementById("a-due").value.replace('T', ' ') + ":00",
+                maxMarks: parseInt(document.getElementById("a-marks").value),
+                fileUrl: fileUrl,
+                isActive: true
+            };
+
+            await AssignmentService.create(data);
+            alert("✓ ACADEMIC TASK AUTHORIZED & DEPLOYED.");
+            window.location.href = "assignments.html";
+        } catch(err) { 
+            alert("TRANSMISSION ERROR: " + err.message); 
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
+    };
+
+  </script>
+</body>
+</html>

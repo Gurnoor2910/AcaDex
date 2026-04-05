@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Achievement Audit | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .stat-card { text-align: center; border: 2px solid var(--border-bold); box-shadow: var(--shadow); position: relative; }
+    .stat-value { font-size: 2.2rem; font-weight: 900; color: var(--primary); -webkit-text-stroke: 1px var(--border-bold); }
+    
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2.5rem; }
+    @media (max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } }
+    
+    .grade-badge { 
+      padding: 0.2rem 0.6rem; 
+      font-weight: 800; 
+      font-size: 0.75rem; 
+      border: 2px solid var(--border-bold); 
+      background: var(--bg-primary);
+      box-shadow: 2px 2px 0px var(--border-bold);
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Academic Achievement Audit</h2>
+          <p style="color: var(--text-secondary);">Comprehensive structural analysis of your grade metrics and trends</p>
+        </div>
+      </div>
+
+      <!-- KPI Metrics -->
+      <div class="stats-grid">
+        <div class="stat-card glass-card">
+          <span class="stat-label">Global Quotient</span>
+          <span class="stat-value" id="overall-perc">0%</span>
+        </div>
+        <div class="stat-card glass-card" style="border-color: var(--success);">
+          <span class="stat-label">Peak Performance</span>
+          <span class="stat-value" id="highest-score" style="color: var(--success); font-size: 1.1rem;">-</span>
+        </div>
+        <div class="stat-card glass-card">
+          <span class="stat-label">Verified Audits</span>
+          <span class="stat-value" id="total-exams">0</span>
+        </div>
+      </div>
+      
+      <!-- Visual Intelligence -->
+      <div class="charts-grid">
+          <div class="glass-card">
+              <h3 style="margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 900;">Cluster Performance</h3>
+              <div style="height: 300px; display: flex; align-items: center; justify-content: center;">
+                <canvas id="subjectChart"></canvas>
+              </div>
+          </div>
+          <div class="glass-card">
+              <h3 style="margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 900;">Chronological Trends</h3>
+              <div style="height: 300px; display: flex; align-items: center; justify-content: center;">
+                <canvas id="trendChart"></canvas>
+              </div>
+          </div>
+      </div>
+
+      <!-- Structural Log -->
+      <div class="glass-card">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Global Achievement Registry</h3>
+        <div class="table-container">
+          <table id="marks-table">
+            <thead>
+              <tr>
+                <th>Audit Date</th>
+                <th>Academic Unit</th>
+                <th>Category</th>
+                <th>Verification Score</th>
+                <th style="text-align: right;">Standing</th>
+              </tr>
+            </thead>
+            <tbody id="marks-body">
+              <tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">Synchronizing performance data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/marks.js"></script>
+  <script>
+    let subjectChart, trendChart;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      
+      async function loadMyMarks() {
+          const tbody = document.getElementById("marks-body");
+          try {
+              const records = await MarksService.getMyMarks();
+              if (!records || records.length === 0) {
+                  tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 3rem;">No achievement records identified in the global registry.</td></tr>';
+                  return;
+              }
+              
+              const stats = MarksService.calculateStats(records);
+              document.getElementById("overall-perc").innerText = stats.percentage + '%';
+              document.getElementById("total-exams").innerText = records.length;
+              
+              let highest = -1;
+              let highestSubj = '';
+              
+              tbody.innerHTML = records.map(r => {
+                  const perc = (r.score / r.maxMarks) * 100;
+                  if(perc > highest) { highest = perc; highestSubj = r.subject; }
+                  
+                  const grade = MarksService.getGrade(r.score, r.maxMarks);
+                  const isLow = perc < 50;
+                  const isHigh = perc >= 80;
+                  const scoreColor = isHigh ? 'var(--success)' : (isLow ? 'var(--danger)' : 'var(--text-primary)');
+                  
+                  return `
+                    <tr>
+                        <td style="font-weight: 700; font-family: monospace;">${new Date(r.date).toLocaleDateString('en-GB')}</td>
+                        <td style="font-weight: 900; color: var(--primary); text-transform: uppercase;">${r.subject}</td>
+                        <td style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase;">${r.examType}</td>
+                        <td style="font-weight: 900; font-size: 1.1rem; color: ${scoreColor};">${r.score} <span style="font-size: 0.7rem; color: var(--text-secondary); -webkit-text-stroke: 0;">/ ${r.maxMarks}</span></td>
+                        <td style="text-align: right;">
+                            <span class="status-pill ${grade === 'A' || grade === 'B' ? 'pill-success' : (grade === 'F' ? 'pill-danger' : (grade === 'C' ? 'pill-info' : 'pill-warning'))}">
+                                ${grade}
+                            </span>
+                        </td>
+                    </tr>
+                  `;
+              }).join('');
+              
+              document.getElementById("highest-score").innerText = highest > -1 ? `${highestSubj.toUpperCase()} (${highest.toFixed(1)}%)` : '-';
+              
+              renderCharts(records);
+          } catch(e) { 
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 2rem;">REGISTRY ACCESS FAILURE: ' + e.message + '</td></tr>'; 
+          }
+      }
+
+      function renderCharts(records) {
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+          const textColor = isDark ? '#EEE' : '#111';
+
+          const subjectAverages = {};
+          records.forEach(r => {
+              const sName = r.subject.toUpperCase();
+              if(!subjectAverages[sName]) subjectAverages[sName] = { total: 0, max: 0 };
+              subjectAverages[sName].total += parseFloat(r.score);
+              subjectAverages[sName].max += parseFloat(r.maxMarks);
+          });
+          
+          const labels = Object.keys(subjectAverages);
+          const data = labels.map(l => (subjectAverages[l].total / subjectAverages[l].max) * 100);
+
+          if (subjectChart) subjectChart.destroy();
+          subjectChart = new Chart(document.getElementById('subjectChart'), {
+              type: 'bar',
+              data: {
+                  labels: labels,
+                  datasets: [{
+                      label: 'PERFORMANCE QUOTIENT (%)',
+                      data: data,
+                      backgroundColor: 'var(--primary)',
+                      borderColor: 'var(--border-bold)',
+                      borderWidth: 2
+                  }]
+              },
+              options: { 
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: { 
+                      y: { beginAtZero: true, max: 100, grid: { color: gridColor }, ticks: { color: textColor, font: { weight: 'bold' } } },
+                      x: { grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 10 } } }
+                  },
+                  plugins: { legend: { display: false } }
+              }
+          });
+          
+          const sorted = [...records].sort((a,b) => new Date(a.date) - new Date(b.date));
+          if (trendChart) trendChart.destroy();
+          trendChart = new Chart(document.getElementById('trendChart'), {
+              type: 'line',
+              data: {
+                  labels: sorted.map(r => new Date(r.date).toLocaleDateString('en-GB')),
+                  datasets: [{
+                      label: 'CHRONOLOGICAL SCORE (%)',
+                      data: sorted.map(r => (r.score / r.maxMarks) * 100),
+                      borderColor: 'var(--primary)',
+                      backgroundColor: 'var(--primary)',
+                      borderWidth: 4,
+                      pointBackgroundColor: 'var(--bg-secondary)',
+                      pointBorderColor: 'var(--border-bold)',
+                      pointBorderWidth: 2,
+                      pointRadius: 6,
+                      tension: 0.4
+                  }]
+              },
+              options: { 
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: { 
+                      y: { id: 'y', beginAtZero: true, max: 100, grid: { color: gridColor }, ticks: { color: textColor, font: { weight: 'bold' } } },
+                      x: { grid: { display: false }, ticks: { color: textColor, font: { weight: 'bold', size: 9 } } }
+                  },
+                  plugins: { legend: { display: false } }
+              }
+          });
+      }
+
+      firebase.auth().onAuthStateChanged(user => { if(user) loadMyMarks(); });
+      
+      // Theme watch for charts
+      const observer = new MutationObserver(() => {
+          const records = JSON.parse(localStorage.getItem('cached_marks') || '[]');
+          if (records.length) renderCharts(records);
+      });
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    });
+  </script>
+</body>
+</html>

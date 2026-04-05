@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACADEX | Cloud-Based Smart Campus System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .landing-hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 3rem;
+      background: var(--bg-primary);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Neobrutalist background patterns */
+    .landing-hero::before {
+      content: "";
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 120%;
+      height: 120%;
+      background-image: radial-gradient(var(--border-bold) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.1;
+      z-index: 0;
+    }
+
+    .hero-title {
+      font-size: clamp(3rem, 8vw, 6rem);
+      /* Reduced for 100% zoom */
+      font-weight: 950;
+      line-height: 0.85;
+      letter-spacing: -3px;
+      margin-bottom: 2rem;
+      position: relative;
+      z-index: 1;
+      text-transform: uppercase;
+      transform: rotate(-1deg);
+    }
+
+    .hero-title span {
+      color: var(--primary);
+      -webkit-text-stroke: 2px var(--border-bold);
+      background: var(--bg-secondary);
+      padding: 0 1rem;
+      box-shadow: 8px 8px 0px var(--border-bold);
+      display: inline-block;
+    }
+
+    .hero-subtitle {
+      max-width: 600px;
+      /* Reduced for better line length */
+      font-size: 1.1rem;
+      /* Scaled down */
+      font-weight: 900;
+      color: var(--text-primary);
+      margin-bottom: 3.5rem;
+      position: relative;
+      z-index: 1;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+      background: var(--bg-secondary);
+      padding: 0.5rem 1rem;
+      border: 3px solid var(--border-bold);
+      box-shadow: 5px 5px 0px var(--border-bold);
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 480px;
+      margin-top: 2rem;
+      position: relative;
+      z-index: 2;
+      border-width: 3px;
+      box-shadow: 15px 15px 0px var(--border-bold);
+      transition: transform 0.2s ease;
+    }
+
+    .login-box:hover {
+      transform: translate(-4px, -4px);
+      box-shadow: 20px 20px 0px var(--border-bold);
+    }
+
+    .status-msg {
+      margin-top: 2rem;
+      font-weight: 900;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 1rem;
+      border: 2px solid transparent;
+    }
+
+    .status-msg.active {
+      border-color: var(--border-bold);
+      background: var(--bg-secondary);
+      box-shadow: 4px 4px 0px var(--border-bold);
+    }
+
+    .ticker {
+      position: fixed;
+      bottom: 2rem;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      opacity: 0.8;
+      z-index: 1;
+    }
+
+    .ticker span::before {
+      content: "•";
+      margin-right: 0.75rem;
+      color: var(--primary);
+    }
+
+    /* Theme Toggle Style */
+    .login-theme-toggle {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 1000;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      border: 3px solid var(--border-bold);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      box-shadow: 4px 4px 0px var(--border-bold);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .login-theme-toggle:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px var(--border-bold);
+    }
+
+    /* Mobile Responsiveness */
+    @media (max-width: 600px) {
+      .landing-hero {
+        padding: 1.5rem;
+      }
+
+      .hero-title {
+        font-size: clamp(2.5rem, 12vw, 4rem);
+        margin-bottom: 1.5rem;
+      }
+
+      .hero-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 2.5rem;
+        padding: 0.4rem 0.8rem;
+      }
+
+      .login-box {
+        padding: 1.5rem;
+        box-shadow: 10px 10px 0px var(--border-bold);
+      }
+
+      .login-box:hover {
+        transform: none;
+        box-shadow: 10px 10px 0px var(--border-bold);
+      }
+
+      .ticker {
+        bottom: 1rem;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .ticker span::before {
+        display: none;
+      }
+
+      .login-theme-toggle {
+        top: 1rem;
+        right: 1rem;
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+
+<body>
+  <button class="login-theme-toggle" id="theme-toggle" title="Toggle Theme">
+    <i class="fas fa-moon"></i>
+  </button>
+  <div class="landing-hero">
+    <h1 class="hero-title">AcaDex <span>SCS</span></h1>
+    <p class="hero-subtitle">Cloud-Based Smart Campus System</p>
+
+    <div class="glass-card login-box">
+      <h3
+        style="margin-bottom: 2.5rem; text-transform: uppercase; letter-spacing: 2px; font-weight: 950; font-size: 1.5rem; color: var(--primary);">
+        Login</h3>
+      <form id="loginForm">
+        <div class="input-group">
+          <label style="font-weight: 900; color: var(--text-primary);">Email Address</label>
+          <input type="email" id="email" required placeholder="Enter your email"
+            style="font-weight: 800; border-width: 3px;">
+        </div>
+        <div class="input-group" style="margin-top: 1.5rem;">
+          <label style="font-weight: 900; color: var(--text-primary);">Password</label>
+          <input type="password" id="password" required placeholder="Enter your password"
+            style="font-weight: 800; border-width: 3px;">
+        </div>
+        <button type="submit" id="auth-btn" class="btn btn-primary"
+          style="width: 100%; justify-content: center; font-size: 1.25rem; font-weight: 950; height: 65px; margin-top: 2rem; text-transform: uppercase; letter-spacing: 1px; box-shadow: 6px 6px 0px var(--border-bold);">Sign
+          In <i class="fas fa-arrow-right"></i></button>
+      </form>
+      <div id="loginStatus" class="status-msg"></div>
+    </div>
+
+    <div class="ticker">
+      <span>Secure & Reliable</span>
+      <span>Daily Backups</span>
+      <span>Fast Performance</span>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // Theme Management
+    const themeToggle = document.getElementById('theme-toggle');
+    const root = document.documentElement;
+
+    const updateThemeIcon = (theme) => {
+      const icon = themeToggle.querySelector('i');
+      icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    };
+
+    // Load initial theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    root.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+
+    themeToggle.onclick = () => {
+      const current = root.getAttribute('data-theme') || 'light';
+      const target = current === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', target);
+      localStorage.setItem('theme', target);
+      updateThemeIcon(target);
+    };
+
+    document.getElementById("loginForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const status = document.getElementById("loginStatus");
+      const btn = document.getElementById("auth-btn");
+
+      status.innerText = "Checking credentials...";
+      status.classList.add('active');
+      status.style.color = "var(--primary)";
+      btn.disabled = true;
+      btn.innerText = "SIGNING IN...";
+
+      try {
+        const user = await authLogin(email, password);
+        status.innerText = "Success! Redirecting...";
+        status.style.color = "var(--success)";
+        btn.innerText = "WELCOME";
+
+        setTimeout(() => {
+          const roleRedirects = {
+            "admin": "dashboards/admin-dashboard.html",
+            "student": "dashboards/student-dashboard.html",
+            "faculty": "dashboards/faculty-dashboard.html"
+          };
+          window.location.href = roleRedirects[user.role] || "dashboards/unauthorized.html";
+        }, 1000);
+      } catch (err) {
+        status.innerText = "Error: " + err.message;
+        status.style.color = "var(--danger)";
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In <i class="fas fa-arrow-right"></i>';
+        console.error(err);
+      }
+    };
+
+    window.onload = () => {
+      const user = localStorage.getItem("acadex_user");
+      if (user) {
+        try {
+          const data = JSON.parse(user);
+          const roleRedirects = {
+            "admin": "dashboards/admin-dashboard.html",
+            "student": "dashboards/student-dashboard.html",
+            "faculty": "dashboards/faculty-dashboard.html"
+          };
+          if (data && data.role) window.location.href = roleRedirects[data.role] || "dashboards/unauthorized.html";
+        } catch (e) { localStorage.removeItem("acadex_user"); }
+      }
+    };
+  </script>
+</body>
+
+</html>

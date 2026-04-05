@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curriculum Control | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="header-row">
+        <div>
+          <h2>Curriculum Design</h2>
+          <p style="color: var(--text-secondary);">Architect institutional courses and semester structures</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-bottom: 3rem; max-width: 600px;">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Initialize New Course</h3>
+        <form id="course-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+          <div class="input-group" style="grid-column: 1 / -1;">
+            <label>Formal Program Name</label>
+            <input type="text" id="courseName" placeholder="e.g. B.Sc Psychology" required>
+          </div>
+          <div class="input-group">
+            <label>Duration (Years)</label>
+            <input type="number" id="duration" value="3" required>
+          </div>
+          <div class="input-group">
+            <label>Semester Count</label>
+            <input type="number" id="totalSemesters" value="6" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="grid-column: 1 / -1; justify-content: center; height: 50px;">CREATE ACADEMIC PROGRAM</button>
+        </form>
+      </div>
+
+      <div class="glass-card">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Active Academic Programs</h3>
+        <div class="table-container">
+          <table id="course-table">
+            <thead>
+              <tr>
+                <th>Registry Code</th>
+                <th>Program Name</th>
+                <th>Planning Horizon</th>
+                <th>Total Cycle</th>
+                <th style="text-align: right;">Operations</th>
+              </tr>
+            </thead>
+            <tbody id="course-list-body">
+                <tr><td colspan="5" style="text-align: center; padding: 2rem;">Loading curriculum database...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="max-width: 500px; width: 90%;">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Modify Program</h3>
+        <form id="edit-course-form">
+          <input type="hidden" id="editCourseId">
+          <div class="input-group">
+            <label>Course Title</label>
+            <input type="text" id="editCourseName" required>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="input-group">
+                <label>Years</label>
+                <input type="number" id="editDuration" required>
+              </div>
+              <div class="input-group">
+                <label>Semesters</label>
+                <input type="number" id="editTotalSemesters" required>
+              </div>
+          </div>
+          <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 2; justify-content: center;">UPDATE REGISTRY</button>
+            <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; justify-content: center;">CANCEL</button>
+          </div>
+        </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script>
+    checkAuth();
+    CourseService.initSync();
+    
+    document.addEventListener("DOMContentLoaded", async () => {
+        await CourseService.loadCourseData();
+        window.renderUI();
+    });
+
+    window.renderUI = function() {
+        const courses = window.courseData || [];
+        const tbody = document.querySelector("#course-table tbody");
+        tbody.innerHTML = courses.map(c => `
+            <tr id="row-${c.id}">
+                <td style="font-family: monospace; font-weight: 800; font-size: 0.75rem;">#${c.id.substring(0,6)}</td>
+                <td style="font-weight: 800; color: var(--primary); text-transform: uppercase;">${c.courseName}</td>
+                <td style="font-weight: 700;">${c.duration} Academic Years</td>
+                <td><span class="status-pill" style="background: var(--bg-primary);">${c.totalSemesters} Semesters</span></td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <button onclick="editCourse('${c.id}')" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;">EDIT</button>
+                        <button onclick="manageSems('${c.id}')" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; border-color: var(--border-bold);">SEMS →</button>
+                        <button onclick="deleteCourse('${c.id}')" class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger); padding: 0.4rem 0.8rem; font-size: 0.7rem;">PURGE</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No programs found in registry.</td></tr>';
+    }
+
+    function editCourse(id) {
+        const c = window.courseData.find(x => x.id === id);
+        if(!c) return;
+        document.getElementById("editCourseId").value = c.id;
+        document.getElementById("editCourseName").value = c.courseName;
+        document.getElementById("editDuration").value = c.duration;
+        document.getElementById("editTotalSemesters").value = c.totalSemesters;
+        document.getElementById("edit-modal").style.display = "flex";
+    }
+
+    window.closeEditModal = () => document.getElementById("edit-modal").style.display = "none";
+
+    document.getElementById("edit-course-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById("editCourseId").value;
+        const c = window.courseData.find(x => x.id === id);
+        const newTotalSems = parseInt(document.getElementById("editTotalSemesters").value);
+        
+        if (c && c.totalSemesters !== newTotalSems) {
+            const msg = newTotalSems < c.totalSemesters 
+                ? "WARNING: Structural reduction may result in data loss for orphaned semesters. Continue?"
+                : "INFO: System will generate missing semester documents automatically. Continue?";
+            if (!confirm(msg)) return;
+        }
+
+        const data = {
+            courseName: document.getElementById("editCourseName").value,
+            duration: parseInt(document.getElementById("editDuration").value),
+            totalSemesters: newTotalSems
+        };
+        try {
+            await CourseService.updateCourse(id, data);
+            closeEditModal();
+        } catch(e) { alert("REGISTRY ERROR: " + e.message); }
+    };
+
+    function manageSems(id) { window.location.href = `semester-management.html?courseId=${id}`; }
+
+    async function deleteCourse(id) {
+        if(!confirm("CRITICAL: Purge this course and ALL related semesters, subjects, and records?")) return;
+        try {
+            await CourseService.deleteItem(`courses/${id}`);
+        } catch(e) { alert("DATA DELETION FAILURE: " + e.message); }
+    }
+
+    document.getElementById("course-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const data = {
+            courseName: document.getElementById("courseName").value,
+            duration: parseInt(document.getElementById("duration").value),
+            totalSemesters: parseInt(document.getElementById("totalSemesters").value)
+        };
+        try {
+            await CourseService.create(data);
+            e.target.reset();
+        } catch(e) { alert("COMMUNICATION ERROR: " + e.message); }
+    };
+  </script>
+</body>
+</html>

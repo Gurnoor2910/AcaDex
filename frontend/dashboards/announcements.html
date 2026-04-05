@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulletin Board | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .bulletin-grid { display: grid; grid-template-columns: 1fr; gap: 2.5rem; max-width: 900px; margin: 3rem auto; }
+    .bulletin-card {
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .bulletin-card:hover { transform: translate(-6px, -6px); box-shadow: 10px 10px 0px var(--border-bold); }
+    
+    .priority-tag {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      font-weight: 900;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      border: 2px solid var(--border-bold);
+      box-shadow: 3px 3px 0px var(--border-bold);
+      margin-bottom: 2rem;
+      border-radius: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Institutional Bulletin Board</h2>
+          <p style="color: var(--text-secondary);">Direct structural dispatches tailored to your academic profile and course enrollment</p>
+        </div>
+      </div>
+
+      <div id="ann-list" class="bulletin-grid">
+         <div style="text-align: center; padding: 5rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">
+           Synchronizing bulletin registry...
+         </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script>
+    checkAuth();
+    
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            const announcements = await AnnouncementService.getForStudent();
+            const list = document.getElementById("ann-list");
+            
+            if (!announcements || announcements.length === 0) {
+                list.innerHTML = `<div style="text-align: center; padding: 5rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No active institutional dispatches at this time.</div>`;
+                return;
+            }
+
+            list.innerHTML = announcements.map(a => {
+                const date = new Date(a.createdAt).toLocaleDateString('en-GB');
+                const priorityColor = AnnouncementService.getPriorityColor(a.priority);
+                
+                return `
+                    <div class="glass-card bulletin-card" style="border-left-width: 8px; border-left-color: ${priorityColor};">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                            <span class="priority-tag" style="background: ${priorityColor}; color: white; border-color: var(--border-bold);">${a.priority} STANCE</span>
+                            <span style="font-family: monospace; font-weight: 900; font-size: 0.75rem; color: var(--text-secondary);">[${date}]</span>
+                        </div>
+                        <h3 style="margin-bottom: 1.5rem; font-weight: 900; text-transform: uppercase; font-size: 1.4rem; letter-spacing: -0.5px; color: var(--primary);">${a.title}</h3>
+                        <p style="white-space: pre-wrap; line-height: 1.8; color: var(--text-primary); font-weight: 700; font-size: 0.95rem; text-transform: uppercase;">${a.message}</p>
+                        
+                        <div style="margin-top: 2rem; border-top: 2px solid var(--border-bold); padding-top: 1rem; text-align: right;">
+                            <span style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 900; text-transform: uppercase;">AUTHORIZED INSTITUTIONAL BROADCAST</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch(err) { 
+            console.error("Bulletin sync failure", err); 
+            document.getElementById("ann-list").innerHTML = `<div style="text-align: center; padding: 4rem; color: var(--danger); font-weight: 900;">BULLETIN DISPATCH FAILURE: ${err.message.toUpperCase()}</div>`;
+        }
+    });
+  </script>
+</body>
+</html>

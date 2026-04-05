@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subject Taxonomy | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Subject Taxonomy & Personnel</h2>
+          <p id="sem-title" style="color: var(--text-secondary); font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">Initializing academic unit registry...</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← RETURN TO CYCLES</button>
+      </div>
+
+      <!-- Creation Interface -->
+      <div class="glass-card" style="margin-bottom: 3.5rem; max-width: 850px; border-width: 2px;">
+        <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Incorporate New Academic Unit</h3>
+        <form id="sub-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div class="input-group">
+              <label>Formal Unit Name</label>
+              <input type="text" id="subjectName" placeholder="e.g. ADVANCED NEURAL NETWORKS" required>
+          </div>
+          <div class="input-group">
+              <label>Institutional Taxonomy Code</label>
+              <input type="text" id="subjectCode" placeholder="e.g. CS-902" required>
+          </div>
+          <div class="input-group">
+              <label>Academic Weightage (Credits)</label>
+              <input type="number" id="credits" value="4" required min="1" style="font-weight: 900;">
+          </div>
+          <div class="input-group">
+              <label>Authorized Personnel Assignee</label>
+              <select id="facultyId" required>
+                <option value="">AUTHENTICATING FACULTY REGISTRY...</option>
+              </select>
+          </div>
+          <button type="submit" id="add-btn" class="btn btn-primary" style="grid-column: 1 / -1; justify-content: center; height: 55px; font-size: 1.1rem; margin-top: 1rem;">AUTHORIZE & REGISTER ACADEMIC UNIT</button>
+        </form>
+      </div>
+
+      <!-- Registry Interface -->
+      <div class="glass-card" style="border-width: 2px; padding: 0; overflow: hidden;">
+        <div style="padding: 1.5rem 2rem; border-bottom: 2px solid var(--border-bold); background: var(--bg-secondary);">
+            <h3 style="text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px; margin: 0;">Verified Academic Unit Registry</h3>
+        </div>
+        <div class="table-container">
+          <table id="sub-table">
+            <thead>
+              <tr>
+                <th>Taxonomy Code</th>
+                <th>Formal Description</th>
+                <th>Weightage</th>
+                <th>Assigned Personnel</th>
+                <th style="text-align: right;">Structural Operations</th>
+              </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Scanning academic unit logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modification Overlay -->
+  <div id="edit-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="max-width: 650px; width: 95%; border-width: 2px;">
+        <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; color: var(--primary);">Modify Unit Parameters</h3>
+        <form id="edit-sub-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <input type="hidden" id="editSubId">
+          <div class="input-group">
+              <label>Formal Unit Name</label>
+              <input type="text" id="editSubjectName" required>
+          </div>
+          <div class="input-group">
+              <label>Taxonomy Code</label>
+              <input type="text" id="editSubjectCode" required>
+          </div>
+          <div class="input-group">
+              <label>Weightage (Credits)</label>
+              <input type="number" id="editCredits" required min="1" style="font-weight: 900;">
+          </div>
+          <div class="input-group">
+              <label>Personnel Assignee</label>
+              <select id="editFacultyId" required></select>
+          </div>
+          <div style="display: flex; gap: 1.5rem; margin-top: 1.5rem; grid-column: 1 / -1;">
+            <button type="submit" id="save-btn" class="btn btn-primary" style="flex: 2; justify-content: center; height: 50px;">COMMIT UPDATES</button>
+            <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; justify-content: center; height: 50px;">CANCEL</button>
+          </div>
+        </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script>
+    checkAuth();
+    CourseService.initSync();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const courseId = urlParams.get("courseId");
+    const semesterId = urlParams.get("semesterId");
+
+    if (!courseId || !semesterId) {
+        alert("CRITICAL ERROR: Relational metadata lost. Manual override required.");
+        window.location.href = "course-management.html";
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            await loadFaculties();
+            await CourseService.loadCourseData();
+            window.renderUI();
+        } catch(e) { console.error("Identity audit failure", e); }
+    });
+
+    async function loadFaculties() {
+        try {
+            const faculties = await ApiClient.get("/admin/faculty");
+            const select = document.getElementById("facultyId");
+            const editSelect = document.getElementById("editFacultyId");
+            const html = faculties.map(f => `<option value="${f.uid}">${f.name.toUpperCase()}</option>`).join('');
+            select.innerHTML = `<option value="">-- SELECT PERSONNEL --</option>` + html;
+            editSelect.innerHTML = `<option value="">-- SELECT PERSONNEL --</option>` + html;
+        } catch(e) { 
+            console.error("Faculty registry failure", e); 
+            document.getElementById("facultyId").innerHTML = '<option value="">FAILURE TO ACCEDE PERSONNEL LOGS</option>';
+        }
+    }
+
+    window.renderUI = function() {
+        const course = (window.courseData || []).find(c => c.id === courseId);
+        if (!course) return;
+        const semester = course.semesters.find(s => s.id === semesterId);
+        if (!semester) return;
+
+        document.getElementById("sem-title").innerText = `${course.courseName.toUpperCase()} • CYCLE ${semester.semesterNumber} • UNIT TAXONOMY`;
+
+        const subs = semester.subjects || [];
+        const tbody = document.querySelector("#sub-table tbody");
+        
+        if (!subs || subs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No units currently mapped to this academic lifecycle.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = subs.map(s => `
+            <tr id="row-${s.id}">
+                <td><code style="font-weight: 900; color: var(--primary); font-size: 0.9rem; text-transform: uppercase; background: var(--bg-primary); padding: 0.2rem 0.5rem; border: 2px solid var(--border-bold);">${s.subjectCode}</code></td>
+                <td style="font-weight: 900; text-transform: uppercase; font-size: 1.1rem; letter-spacing: -0.5px;">${s.subjectName}</td>
+                <td><span class="status-pill" style="background: var(--bg-primary); border: 2px solid var(--border-bold); font-weight: 900; text-transform: uppercase; font-size: 1rem; color: var(--text-primary); font-family: monospace; box-shadow: 2px 2px 0px var(--border-bold);">${s.credits || 0}</span></td>
+                <td>
+                   <div style="font-weight: 900; border: 2px solid var(--border-bold); padding: 0.4rem 1rem; font-size: 0.75rem; background: var(--bg-secondary); box-shadow: 4px 4px 0px var(--border-bold); text-transform: uppercase; display: inline-block;">
+                        ${(s.facultyName || 'PERSONNEL NOT ASSIGNED').toUpperCase()}
+                   </div>
+                </td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button onclick="openEditSub('${s.id}')" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.7rem; font-weight: 800;">ADJUST</button>
+                        <button onclick="deleteSub('${s.id}')" class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger); padding: 0.4rem 1rem; font-size: 0.7rem; font-weight: 800;">PURGE</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    };
+
+    window.openEditSub = function(id) {
+        const course = (window.courseData || []).find(c => c.id === courseId);
+        if (!course) return;
+        const semester = course.semesters.find(s => s.id === semesterId);
+        if (!semester) return;
+        const s = semester.subjects.find(x => x.id === id);
+        if(!s) return;
+        document.getElementById("editSubId").value = s.id;
+        document.getElementById("editSubjectName").value = s.subjectName.toUpperCase();
+        document.getElementById("editSubjectCode").value = s.subjectCode.toUpperCase();
+        document.getElementById("editCredits").value = s.credits || 4;
+        document.getElementById("editFacultyId").value = s.facultyId || "";
+        document.getElementById("edit-modal").style.display = "flex";
+    };
+
+    window.closeEditModal = () => document.getElementById("edit-modal").style.display = "none";
+
+    document.getElementById("edit-sub-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("save-btn");
+        const subid = document.getElementById("editSubId").value;
+        const facSelect = document.getElementById("editFacultyId");
+        const data = {
+            subjectName: document.getElementById("editSubjectName").value.toUpperCase(),
+            subjectCode: document.getElementById("editSubjectCode").value.toUpperCase(),
+            credits: parseInt(document.getElementById("editCredits").value),
+            facultyId: facSelect.value,
+            facultyName: facSelect.options[facSelect.selectedIndex].text.toUpperCase()
+        };
+        try {
+            btn.disabled = true;
+            btn.innerText = "TRANSMITTING UPDATES...";
+            await CourseService.updateSubject(courseId, semesterId, subid, data);
+            alert("ACADEMIC UNIT METADATA UPDATED.");
+            closeEditModal();
+        } catch(e) { 
+            alert("TAXONOMY ERROR: " + e.message); 
+            btn.disabled = false;
+            btn.innerText = "COMMIT UPDATES";
+        }
+    };
+
+    window.deleteSub = async function(id) {
+        if(!confirm("CRITICAL: Permanently purge this academic unit from the institutional curriculum? Proceed?")) return;
+        try {
+            await CourseService.deleteItem(`courses/${courseId}/semesters/${semesterId}/subjects/${id}`);
+        } catch(e) { alert("DATA DELETION FAILURE: " + e.message); }
+    };
+
+    document.getElementById("sub-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("add-btn");
+        const facSelect = document.getElementById("facultyId");
+        const data = {
+            subjectName: document.getElementById("subjectName").value.toUpperCase(),
+            subjectCode: document.getElementById("subjectCode").value.toUpperCase(),
+            credits: parseInt(document.getElementById("credits").value),
+            facultyId: facSelect.value,
+            facultyName: facSelect.options[facSelect.selectedIndex].text.toUpperCase()
+        };
+        try {
+            btn.disabled = true;
+            btn.innerText = "INITIALIZING REGISTRATION...";
+            await CourseService.addSubject(courseId, semesterId, data);
+            alert("ACADEMIC UNIT SUCCESSFULLY INCORPORATED.");
+            e.target.reset();
+        } catch(e) { alert("REGISTRY ERROR: " + e.message); } finally {
+            btn.disabled = false;
+            btn.innerText = "AUTHORIZE & REGISTER ACADEMIC UNIT";
+        }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modify Scholarly Asset | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Modify Scholarly Asset</h2>
+          <p style="color: var(--text-secondary);">Redefine the metadata and structural indexing for an institutional resource</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 750px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Update Asset Allocation</h3>
+          <form id="material-form">
+            <div class="input-group">
+                <label>Asset Headline (Title)</label>
+                <input type="text" id="m-title" required placeholder="e.g. MODULE 1: QUANTUM PHYSICS">
+            </div>
+
+            <div class="input-group">
+                <label>Institutional Narrative (Description)</label>
+                <textarea id="m-desc" rows="6" placeholder="Provide a scholarly abstract for this resource..." required></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+                <div class="input-group">
+                  <label>Academic Program</label>
+                  <select id="m-course" required disabled>
+                    <!-- Pre-filled via data -->
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label>Institutional Cycle (Semester)</label>
+                  <select id="m-sem" required disabled>
+                    <!-- Pre-filled via data -->
+                  </select>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Academic Unit (Subject)</label>
+                <select id="m-subject" required disabled>
+                    <!-- Pre-filled via data -->
+                </select>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Resource Source (Current/New)</label>
+                <div id="current-file" style="margin-bottom: 10px; font-size: 0.75rem; font-weight: 800; color: var(--info);"></div>
+                <input type="file" id="m-file" style="padding: 0.5rem; background: var(--bg-primary);">
+                <p style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 5px; font-weight: 700;">UPLOAD TO OVERWRITE PREVIOUS RESOURCE DATA</p>
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1.5rem;">
+                <button type="submit" id="submit-btn" class="btn btn-primary" style="flex: 2; justify-content: center; height: 55px; font-size: 1.1rem;">COMMIT ASSET UPDATES</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let materialId;
+    let currentData;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user && user.role === 'student') window.location.href = "materials.html";
+      
+      const params = new URLSearchParams(window.location.search);
+      materialId = params.get('id');
+      if (!materialId) window.location.href = "materials-management.html";
+
+      try {
+          const list = await MaterialService.getAll();
+          currentData = list.find(m => m.id === materialId);
+          if (!currentData) throw new Error("Asset identification failure");
+
+          // Pre-fill
+          document.getElementById("m-title").value = currentData.title;
+          document.getElementById("m-desc").value = currentData.description;
+          
+          if (currentData.fileUrl) {
+              document.getElementById("current-file").innerHTML = `CURRENT RESOURCE: <a href="${currentData.fileUrl}" target="_blank" style="text-decoration: underline;">[VIEW ASSET]</a>`;
+          }
+
+          // Read-only selections
+          document.getElementById("m-course").innerHTML = ` <option>${currentData.courseId || 'CORE'}</option>`;
+          document.getElementById("m-sem").innerHTML = `<option>CYCLE ${currentData.semester || 'N/A'}</option>`;
+          document.getElementById("m-subject").innerHTML = `<option>${currentData.subjectName || 'GENERAL'}</option>`;
+
+      } catch(e) { console.error("Initialization failure", e); alert("FETCH ERROR: " + e.message); }
+    });
+
+    document.getElementById("material-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        const fileInput = document.getElementById("m-file");
+        
+        try {
+            btn.disabled = true;
+            btn.innerText = "COMMIT UPDATES...";
+
+            let fileUrl = currentData.fileUrl || "";
+            if (fileInput.files.length > 0) {
+                btn.innerText = "UPLOADING NEW RESOURCE...";
+                const file = fileInput.files[0];
+                const storageRef = firebase.storage().ref();
+                const fileRef = storageRef.child(`materials/${Date.now()}_${file.name}`);
+                const snapshot = await fileRef.put(file);
+                fileUrl = await snapshot.ref.getDownloadURL();
+            }
+
+            const updates = {
+                title: document.getElementById("m-title").value.toUpperCase(),
+                description: document.getElementById("m-desc").value,
+                fileUrl: fileUrl
+            };
+
+            await MaterialService.update(materialId, updates);
+            alert("✓ SCHOLARLY ASSET REGISTRY UPDATED.");
+            window.location.href = "materials-management.html";
+        } catch(err) { 
+            alert("COMMIT FAILURE: " + err.message); 
+            btn.disabled = false;
+            btn.innerText = "COMMIT ASSET UPDATES";
+        }
+    };
+  </script>
+</body>
+</html>

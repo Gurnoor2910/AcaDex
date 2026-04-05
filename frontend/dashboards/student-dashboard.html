@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Command | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .bulletin-node { 
+      padding: 1.25rem; 
+      border: 2px solid var(--border-bold); 
+      background: var(--bg-secondary); 
+      box-shadow: 4px 4px 0px var(--border-bold); 
+      margin-bottom: 1.25rem;
+      transition: transform 0.2s ease;
+    }
+    .bulletin-node:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--border-bold); }
+    
+    .lecture-pill { 
+      border: 2px solid var(--border-bold); 
+      padding: 1.25rem; 
+      background: var(--bg-primary); 
+      box-shadow: 4px 4px 0px var(--border-bold);
+      transition: all 0.2s ease;
+    }
+    .lecture-pill:hover { background: var(--bg-secondary); transform: scale(1.02); }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="container">
+        <div class="header-row">
+          <div>
+            <h2>Academic Command Hub</h2>
+            <p style="color: var(--text-secondary);">Structural summary of your institutional progress, performance quotients, and schedule</p>
+          </div>
+        </div>
+
+        <div class="grid-auto" style="margin-top: 1rem;">
+          <div class="glass-card stat-card" onclick="window.location.href='student-attendance.html'" style="cursor: pointer;">
+            <span class="stat-label">Institutional Presence</span>
+            <span class="stat-value" id="stat-attendance">0%</span>
+            <div style="font-size: 0.6rem; font-weight: 900; text-transform: uppercase; color: var(--text-secondary); margin-top: 1rem; border-top: 1px solid var(--border-bold); padding-top: 0.5rem;">REGISTRY VERIFIED <i class="fas fa-arrow-right"></i></div>
+          </div>
+          <div class="glass-card stat-card">
+            <span class="stat-label">Performance Quotient</span>
+            <span class="stat-value" id="stat-marks" style="color: var(--primary);">0</span>
+            <div style="font-size: 0.6rem; font-weight: 900; text-transform: uppercase; color: var(--text-secondary); margin-top: 1rem; border-top: 1px solid var(--border-bold); padding-top: 0.5rem;">AGGREGATED GRADE AVG</div>
+          </div>
+          <div class="glass-card stat-card" onclick="window.location.href='student-fees.html'" style="cursor: pointer;">
+            <span class="stat-label">Liability Standing</span>
+            <span class="stat-value" id="stat-fees" style="font-size: 1.2rem; text-transform: uppercase; line-height: 1.8;">INITIALIZING...</span>
+            <div style="font-size: 0.6rem; font-weight: 900; text-transform: uppercase; color: var(--text-secondary); margin-top: 1rem; border-top: 1px solid var(--border-bold); padding-top: 0.5rem;">FINANCIAL AUDIT <i class="fas fa-arrow-right"></i></div>
+          </div>
+        </div>
+
+        <div class="header-row" style="margin-top: 3.5rem; margin-bottom: 2rem;">
+          <h3 style="text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px; margin: 0;">Daily Cycle Sequence</h3>
+          <button class="btn btn-secondary" onclick="window.location.href='student-timetable.html'" style="font-weight: 800; font-size: 0.75rem;">ACCESS FULL TIMELINE <i class="fas fa-arrow-right"></i></button>
+        </div>
+        
+        <div id="today-tt-preview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+             <div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">
+                 Synchronizing with core scheduler...
+             </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 2rem;">
+          <div class="glass-card" style="border-width: 2px;">
+            <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Cluster Performance Ratio</h3>
+            <div style="height: 350px;"><canvas id="marksChart"></canvas></div>
+          </div>
+          <div class="glass-card" style="border-width: 2px;">
+            <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Analytical Insights</h3>
+            <div id="insights-container">
+               <div class="bulletin-node" style="border-left-width: 8px; border-left-color: var(--success);">
+                  <div style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase; color: var(--success); margin-bottom: 0.5rem;">PEAK PERFORMANCE CLUSTER</div>
+                  <div id="best-subject" style="font-weight: 900; font-size: 1.4rem; text-transform: uppercase;">SCANNING...</div>
+               </div>
+               <div class="bulletin-node" style="border-left-width: 8px; border-left-color: var(--danger); margin-top: 2rem;">
+                  <div style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase; color: var(--danger); margin-bottom: 0.5rem;">CRITICAL REVIEW REQUIRED</div>
+                  <div id="weak-subject" style="font-weight: 900; font-size: 1.4rem; text-transform: uppercase;">SCANNING...</div>
+               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 3.5rem;">
+          <div class="glass-card" style="border-width: 2px; padding: 0; overflow: hidden;">
+            <div style="padding: 1.5rem 2rem; border-bottom: 2px solid var(--border-bold);">
+                <h3 style="text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px; margin: 0;">Verified Achievement Registry</h3>
+            </div>
+            <div class="table-container">
+               <table>
+                 <thead><tr><th>Audit Timestamp</th><th>Academic Unit</th><th>Cluster Type</th><th>Outcome</th></tr></thead>
+                 <tbody id="recent-marks-body">
+                     <tr><td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Accessing registry records...</td></tr>
+                 </tbody>
+               </table>
+            </div>
+          </div>
+          <div class="glass-card" style="border-width: 2px;">
+            <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Institutional Dispatches</h3>
+            <div id="ann-preview">
+               <p style="color: var(--text-secondary); text-align: center; padding: 2rem; font-weight: 800; text-transform: uppercase;">Querying bulletin registry...</p>
+            </div>
+            <button class="btn btn-secondary" onclick="window.location.href='announcements.html'" style="width: 100%; justify-content: center; font-weight: 900; height: 50px; margin-top: 1rem;">ACCESS ALL DISPATCHES <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/dashboard.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script src="../js/timetable.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      await loadDashboard();
+      await loadRecentAnnouncements();
+      await loadTodayTimetable();
+    });
+
+    async function loadTodayTimetable() {
+        try {
+            const list = await TimetableService.getMyStudentTT();
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const today = days[new Date().getDay()];
+            const relevant = list.filter(e => e.day === today);
+            
+            const preview = document.getElementById("today-tt-preview");
+            if (relevant.length === 0) {
+                preview.innerHTML = `<div class="glass-card lecture-pill" style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); font-weight: 900; text-transform: uppercase; opacity: 0.6;">No instructional sessions identified for today (${today.toUpperCase()}).</div>`;
+                return;
+            }
+
+            preview.innerHTML = relevant.map(e => `
+                <div class="lecture-pill">
+                   <div style="font-weight: 900; font-size: 0.7rem; color: var(--primary); text-transform: uppercase; margin-bottom: 0.75rem; font-family: monospace;">[${e.timeSlot}]</div>
+                   <div style="font-size: 1.2rem; font-weight: 900; margin-bottom: 0.75rem; color: var(--text-primary); text-transform: uppercase; letter-spacing: -0.5px;">${e.subject}</div>
+                   <div style="font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase;">
+                    PROF. ${(e.facultyName || 'TBA').toUpperCase()} • ROOM ${e.room || 'TBA'}
+                   </div>
+                </div>
+            `).join('');
+        } catch(e) { console.error("Scheduler sync failure", e); }
+    }
+
+    async function loadRecentAnnouncements() {
+        try {
+            const list = await AnnouncementService.getForStudent();
+            const preview = document.getElementById("ann-preview");
+            if (!list || list.length === 0) {
+                preview.innerHTML = '<p style="text-align: center; padding: 2rem; font-weight: 800;">REGISTRY CLEAR.</p>';
+                return;
+            }
+            preview.innerHTML = list.slice(0, 3).map(a => `
+                <div class="bulletin-node" style="border-left-width: 8px; border-left-color: ${AnnouncementService.getPriorityColor(a.priority)};">
+                   <div style="font-weight: 900; font-size: 0.6rem; text-transform: uppercase; color: ${AnnouncementService.getPriorityColor(a.priority)}; margin-bottom: 0.25rem;">${a.priority} PROTOCOL</div>
+                   <div style="font-weight: 900; font-size: 1rem; text-transform: uppercase; line-height: 1.2;">${a.title}</div>
+                </div>
+            `).join('');
+        } catch(e) { console.error("Bulletin retrieval failure", e); }
+    }
+
+    async function loadDashboard() {
+        try {
+            const data = await DashboardService.fetchStudentData();
+            const isDark = document.body.classList.contains('dark-theme');
+            const labelColor = isDark ? "#EEEEEE" : "#111111";
+            const gridColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+
+            document.getElementById("stat-attendance").innerText = `${data.attendancePercentage}%`;
+            document.getElementById("stat-marks").innerText = data.averageMarks;
+            document.getElementById("stat-fees").innerText = data.feeStatus.toUpperCase();
+            document.getElementById("stat-fees").style.color = data.feeStatus === "Paid" ? "var(--success)" : "var(--danger)";
+
+            Chart.defaults.color = labelColor;
+            Chart.defaults.font.weight = 'bold';
+
+            const subLabels = Object.keys(data.subjectMarks).map(l => l.toUpperCase());
+            const subScores = Object.values(data.subjectMarks);
+            
+            if (window.marksChart instanceof Chart) window.marksChart.destroy();
+            const ctx = document.getElementById('marksChart');
+            window.marksChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: subLabels,
+                    datasets: [{
+                        label: 'PERFORMANCE QUOTIENT (%)',
+                        data: subScores,
+                        backgroundColor: 'var(--primary)',
+                        borderColor: 'var(--border-bold)',
+                        borderWidth: 3,
+                        borderRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            max: 100, 
+                            grid: { color: gridColor }, 
+                            ticks: { color: labelColor, font: { weight: 'bold' } } 
+                        },
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: labelColor, font: { weight: '900', size: 10 } } 
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            if (subLabels.length > 0) {
+                const maxIdx = subScores.indexOf(Math.max(...subScores));
+                const minIdx = subScores.indexOf(Math.min(...subScores));
+                document.getElementById("best-subject").innerText = subLabels[maxIdx];
+                document.getElementById("weak-subject").innerText = subLabels[minIdx];
+            }
+
+            const recentMarksBody = document.getElementById("recent-marks-body");
+            if (!data.recentMarks || data.recentMarks.length === 0) {
+                 recentMarksBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No achievement records detected in the registry.</td></tr>';
+            } else {
+                recentMarksBody.innerHTML = data.recentMarks.map(m => `
+                    <tr>
+                        <td style="font-weight: 800; font-family: monospace;">${new Date(m.date).toLocaleDateString('en-GB')}</td>
+                        <td style="font-weight: 900; text-transform: uppercase; color: var(--primary);">${m.subject}</td>
+                        <td style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; opacity: 0.7;">${m.examType}</td>
+                        <td><span class="status-pill" style="background: var(--bg-primary); border: 2px solid var(--border-bold); font-weight: 900; padding: 0.2rem 0.5rem; font-family: monospace;">${m.score}/${m.maxMarks}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+        } catch(e) { console.error("Dashboard compute failure", e); }
+    }
+  </script>
+</body>
+</html>

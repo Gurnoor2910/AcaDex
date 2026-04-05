@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Directory | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    /* Custom High-Contrast Overrides */
+    .password-display {
+      background: var(--bg-primary);
+      border: 2px dashed var(--primary);
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      font-family: 'Space Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      text-align: center;
+      box-shadow: 4px 4px 0px var(--border-bold);
+    }
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Student Enrollment</h2>
+          <p style="color: var(--text-secondary);">Manage institutional student data and credentials</p>
+        </div>
+      </div>
+
+      <!-- Add Student Form -->
+      <div class="glass-card" style="margin-bottom: 3rem;">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Create Academic Profile</h3>
+        <form id="add-student-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Legal Name</label>
+            <input type="text" id="new-name" placeholder="Full Name" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Institutional Email</label>
+            <input type="email" id="new-email" placeholder="student@acadex.edu" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Academic Course</label>
+            <select id="new-course-id" required>
+              <option value="">Fetching courses...</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Current Semester</label>
+            <input type="number" id="new-semester" value="1" min="1" max="12" required>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Primary Faculty Assigned</label>
+            <select id="new-faculty-assigned">
+              <option value="Not Assigned">Not Assigned</option>
+            </select>
+          </div>
+          <div class="input-group" style="margin-bottom: 0;">
+            <label>Security Override Password</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="new-password" placeholder="Automatic if blank">
+              <button type="button" onclick="generatePass()" class="btn btn-secondary" style="padding: 0 1rem; background: var(--bg-primary);">🎲</button>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-end; grid-column: 1 / -1;">
+            <button type="submit" id="add-btn" class="btn btn-primary" style="width: 100%; justify-content: center; height: 55px; font-size: 1.1rem;">AUTHORIZE & CREATE RECORD</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h3 style="text-transform: uppercase; font-weight: 900;">Master Student Directory</h3>
+            <div class="input-group" style="margin: 0; width: 300px;">
+                <input type="text" id="directory-search" placeholder="Filter by Name/Email..." style="padding: 0.5rem 1rem;">
+            </div>
+        </div>
+        <div class="table-container">
+          <table id="students-table">
+            <thead>
+              <tr>
+                <th>Registry ID</th>
+                <th>Full Name</th>
+                <th>Communication</th>
+                <th>Course Mapping</th>
+                <th>Financials</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="student-list-body">
+              <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">Initializing secure link to student registry...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modification Overlay -->
+  <div id="edit-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="max-width: 800px; width: 95%; border-width: 2px;">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; color: var(--primary);">Update Professional Profile</h3>
+        <form id="edit-student-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+            <input type="hidden" id="edit-uid">
+            <div class="input-group">
+                <label>Operational Name</label>
+                <input type="text" id="edit-name" required>
+            </div>
+            <div class="input-group">
+                <label>Institutional Email</label>
+                <input type="email" id="edit-email" required>
+            </div>
+            <div class="input-group">
+                <label>Academic Track</label>
+                <select id="edit-course-id" required></select>
+            </div>
+            <div class="input-group">
+                <label>Current Cycle (Sem)</label>
+                <input type="number" id="edit-semester" min="1" max="12" required>
+            </div>
+            <div class="input-group">
+                <label>Assigned Faculty</label>
+                <select id="edit-faculty-assigned"></select>
+            </div>
+            <div class="input-group">
+                <label>Rotate Professional Password</label>
+                <input type="text" id="edit-password" placeholder="Leave blank to preserve">
+            </div>
+            <div style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-top: 1rem;">
+                <button type="submit" id="save-btn" class="btn btn-primary" style="flex: 2; justify-content: center; height: 50px;">COMMIT ADJUSTMENTS</button>
+                <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; justify-content: center; height: 50px;">CANCEL</button>
+            </div>
+        </form>
+    </div>
+  </div>
+  </div>
+
+  <!-- Credential Modal -->
+  <div id="success-modal" class="modal-overlay">
+    <div class="glass-card" style="max-width: 500px; width: 90%; text-align: center;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🔐</div>
+      <h2 style="color: var(--success); margin-bottom: 1rem; font-weight: 900;">PROFILE SECURED</h2>
+      <p style="color: var(--text-secondary); font-weight: 600;">The student profile has been successfully committed to the database. Provide these credentials to the user.</p>
+      <div id="modal-email" style="margin: 1.5rem 0 0.5rem; font-weight: 800; font-size: 1.1rem;"></div>
+      <div id="modal-password" class="password-display"></div>
+      <button onclick="closeModal()" class="btn btn-primary" style="width: 100%; justify-content: center;">DONE, I HAVE COPIED THESE</button>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const listBody = document.getElementById("student-list-body");
+
+      async function loadStudents() {
+        try {
+          // Fetch DIRECT from Firestore
+          const snapshot = await db.collection("students").get();
+          const students = [];
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            students.push({ ...data, uid: doc.id, studentId: doc.id });
+          });
+
+          if (students.length === 0) {
+            listBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">No student records registered.</td></tr>';
+            return;
+          }
+
+          listBody.innerHTML = students.map(s => `
+            <tr>
+              <td style="font-family: monospace; font-weight: 800;">#${(s.uid || '').substring(0, 8)}</td>
+              <td style="font-weight: 800; color: var(--primary); text-transform: uppercase;">${s.name}</td>
+              <td style="font-weight: 600; font-size: 0.85rem;">${s.email || 'N/A'}</td>
+              <td><span class="status-pill pill-secondary">${s.course || 'Unassigned'}</span></td>
+              <td>
+                <span class="status-pill ${s.feesPaid ? 'pill-success' : 'pill-danger'}">
+                    ${s.feesPaid ? 'CLEARED' : 'PENDING'}
+                </span>
+              </td>
+              <td>
+                <div style="display: flex; gap: 0.5rem;">
+                   <button onclick="openEditModal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;">ADJUST</button>
+                   <button onclick="deleteStudent('${s.uid || s.studentId}')" class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger); padding: 0.4rem 0.8rem; font-size: 0.7rem;">REMOVE</button>
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        } catch (err) {
+          console.error("Load students error:", err);
+          listBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger);">ACCESS FAILURE: ${err.message}</td></tr>`;
+        }
+      }
+
+      window.openEditModal = (student) => {
+          document.getElementById("edit-uid").value = student.uid;
+          document.getElementById("edit-name").value = student.name;
+          document.getElementById("edit-email").value = student.email;
+          document.getElementById("edit-course-id").value = student.courseId || '';
+          document.getElementById("edit-semester").value = student.semester || 1;
+          document.getElementById("edit-faculty-assigned").value = student.facultyAssigned || 'Not Assigned';
+          document.getElementById("edit-password").value = '';
+          document.getElementById("edit-modal").style.display = "flex";
+      };
+
+      window.closeEditModal = () => document.getElementById("edit-modal").style.display = "none";
+
+      document.getElementById("edit-student-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("save-btn");
+          const trackSel = document.getElementById("edit-course-id");
+          const payload = {
+              uid: document.getElementById("edit-uid").value,
+              name: document.getElementById("edit-name").value,
+              email: document.getElementById("edit-email").value,
+              course: trackSel.options[trackSel.selectedIndex]?.getAttribute("data-name"),
+              courseId: trackSel.value,
+              semester: document.getElementById("edit-semester").value,
+              facultyAssigned: document.getElementById("edit-faculty-assigned").value
+          };
+          
+          const newPass = document.getElementById("edit-password").value;
+          if (newPass) payload.password = newPass;
+
+          try {
+              btn.disabled = true;
+              btn.innerText = "SYNCHRONIZING PROFILE...";
+              await ApiClient.request("/admin/update-student", { 
+                  method: 'PUT', 
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload) 
+              });
+              alert("STUDENT PROFILE ADJUSTED SUCCESSFULLY.");
+              closeEditModal();
+              loadStudents();
+          } catch(err) { alert("ADJUSTMENT FAILURE: " + err.message); }
+          finally {
+              btn.disabled = false;
+              btn.innerText = "COMMIT ADJUSTMENTS";
+          }
+      };
+
+      firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+          await loadStudents();
+          try {
+            const faculty = await ApiClient.get("/admin/get-faculty");
+            const select = document.getElementById("new-faculty-assigned");
+            const editSelect = document.getElementById("edit-faculty-assigned");
+            
+            const facultyOptions = faculty.map(f => `<option value="${f.uid}">${f.name}</option>`).join('');
+            select.innerHTML = '<option value="Not Assigned">Not Assigned</option>' + facultyOptions;
+            editSelect.innerHTML = '<option value="Not Assigned">Not Assigned</option>' + facultyOptions;
+
+            const courses = await ApiClient.get("/courses/all");
+            const courseSelect = document.getElementById("new-course-id");
+            const editCourseSelect = document.getElementById("edit-course-id");
+            
+            const courseOptions = courses.map(c => `<option value="${c.id}" data-name="${c.courseName}">${c.courseName}</option>`).join('');
+            const fullCourseOptions = '<option value="">Select Academic Track</option>' + courseOptions;
+            courseSelect.innerHTML = fullCourseOptions;
+            editCourseSelect.innerHTML = fullCourseOptions;
+          } catch(e) { console.warn("Dependency load failure", e); }
+        }
+      });
+
+      window.generatePass = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; 
+        let pass = "";
+        for (let i = 0; i < 8; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        document.getElementById("new-password").value = pass;
+      };
+
+      window.closeModal = () => document.getElementById("success-modal").style.display = "none";
+
+      document.getElementById("add-student-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const addBtn = document.getElementById("add-btn");
+        const originalText = addBtn.innerText;
+        
+        const courseSelect = document.getElementById("new-course-id");
+        const studentData = {
+          name: document.getElementById("new-name").value,
+          email: document.getElementById("new-email").value,
+          course: courseSelect.options[courseSelect.selectedIndex].getAttribute("data-name"),
+          courseId: courseSelect.value,
+          semester: document.getElementById("new-semester").value,
+          password: document.getElementById("new-password").value,
+          facultyAssigned: document.getElementById("new-faculty-assigned").value
+        };
+        
+        try {
+          addBtn.disabled = true;
+          addBtn.innerHTML = "COMMITTING DATA...";
+          const res = await ApiClient.post("/admin/add-student", studentData);
+          document.getElementById("modal-email").innerText = res.email;
+          document.getElementById("modal-password").innerText = res.password;
+          document.getElementById("success-modal").style.display = "flex";
+          e.target.reset();
+          loadStudents();
+        } catch (err) {
+          alert("COMMUNICATION ERROR: " + err.message);
+        } finally {
+          addBtn.disabled = false;
+          addBtn.innerText = originalText;
+        }
+      };
+
+      window.deleteStudent = async (id) => {
+        if (!confirm("CRITICAL: This will permanently purge the student profile. Proceed?")) return;
+        try {
+          await ApiClient.request(`/admin/delete-student?studentId=${id}`, { method: 'DELETE' });
+          loadStudents();
+        } catch (err) { alert("PURGE FAILURE: " + err.message); }
+      };
+    });
+  </script>
+</body>
+</html>

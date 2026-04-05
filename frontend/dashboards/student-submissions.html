@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submission History | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .status-badge {
+        padding: 0.2rem 0.6rem;
+        background: var(--bg-primary);
+        border: 2px solid var(--border-bold);
+        font-family: monospace;
+        font-weight: 900;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        box-shadow: 2px 2px 0px var(--border-bold);
+    }
+    .status-graded { background: var(--success, #10B981); color: white; }
+    .status-submitted { background: var(--info, #3B82F6); color: white; }
+    .status-late { background: var(--danger); color: white; }
+    
+    .score-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: 4px solid var(--border-bold);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 0.8rem;
+        background: var(--bg-primary);
+        box-shadow: 3px 3px 0px var(--border-bold);
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>My Submissions</h2>
+          <p style="color: var(--text-secondary);">View your submission history, feedback, and marks</p>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-top: 2.5rem; padding: 0; overflow: hidden; border-width: 2px;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Assignment</th>
+                <th>Status</th>
+                <th>Feedback</th>
+                <th>Marks</th>
+                <th style="text-align: right;">File</th>
+              </tr>
+            </thead>
+            <tbody id="submissions-tbody">
+               <tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Retrieving submission logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      
+      try {
+          // Fetch assignments to get titles and max marks
+          const [assignments, mySubs] = await Promise.all([
+              AssignmentService.getAll(),
+              AssignmentService.getMySubmissions()
+          ]);
+          
+          const tbody = document.getElementById("submissions-tbody");
+          
+          if(!mySubs || mySubs.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No task transmissions recorded.</td></tr>';
+              return;
+          }
+
+          tbody.innerHTML = mySubs.map(s => {
+              const a = assignments.find(item => item.id === s.assignmentId) || { title: 'Unknown Task', subjectName: 'General', maxMarks: 100 };
+              const subDate = new Date(s.submittedAt);
+              
+              let statusClass = s.status === 'graded' ? 'status-graded' : 'status-submitted';
+              let statusText = s.status === 'graded' ? 'GRADED' : 'SUBMITTED';
+
+              return `
+                  <tr>
+                      <td>
+                        <div style="font-weight: 900; text-transform: uppercase; color: var(--primary);">${a.title}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; font-weight: 700; text-transform: uppercase;">${a.subjectName}</div>
+                      </td>
+                      <td>
+                        <div class="status-badge ${statusClass}">${statusText}</div>
+                        <div style="font-size: 0.6rem; color: var(--text-secondary); font-weight: 800; margin-top: 5px; text-transform: uppercase;">DATE: ${subDate.toLocaleString('en-GB')}</div>
+                      </td>
+                      <td>
+                        <div style="font-size: 0.75rem; color: var(--text-main); font-weight: 700; font-style: italic;">"${s.feedback || 'Waiting for evaluation...'}"</div>
+                      </td>
+                      <td>
+                        <div class="score-circle">
+                          <span style="color: var(--primary);">${s.marksAwarded !== undefined ? s.marksAwarded : '—'}</span>
+                          <span style="font-size: 0.5rem; color: var(--text-secondary); border-top: 1px solid var(--border-bold); width: 80%; text-align: center;">${a.maxMarks}</span>
+                        </div>
+                      </td>
+                      <td style="text-align: right;">
+                        <a href="${s.fileUrl}" target="_blank" class="btn btn-secondary" style="font-size: 0.6rem; padding: 0.4rem 0.6rem;">VIEW FILE</a>
+                      </td>
+                  </tr>
+              `;
+          }).join('');
+      } catch(e) { 
+          console.error(e); 
+          document.getElementById("submissions-tbody").innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger); font-weight: 900;">TRANSMISSION LOG SYNC ERROR.</td></tr>`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Audit | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .status-badge { padding: 0.3rem 0.8rem; font-weight: 900; font-size: 0.65rem; border: 2px solid var(--border-bold); text-transform: uppercase; }
+    
+    .search-panel { 
+        background: var(--bg-secondary); 
+        border: 2px solid var(--border-bold); 
+        box-shadow: var(--shadow); 
+        padding: 2rem; 
+        display: flex; 
+        gap: 1.5rem; 
+        align-items: flex-end; 
+        flex-wrap: wrap;
+        margin-bottom: 3.5rem;
+    }
+    @media (max-width: 768px) {
+        .search-panel { padding: 1.5rem; gap: 1rem; }
+        .search-panel .input-group { min-width: 100% !important; }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Attendance Audit & Verification</h2>
+          <p style="color: var(--text-secondary);">Global student presence registry and structural verification logs</p>
+        </div>
+      </div>
+
+      <div class="search-panel">
+        <div class="input-group" style="flex: 1; min-width: 350px; margin-bottom: 0;">
+          <label>Target Candidate (Student Registry)</label>
+          <select id="student-search">
+            <option value="">AUTHENTICATING REGISTRY LINK...</option>
+          </select>
+        </div>
+        <button onclick="fetchLogs()" class="btn btn-primary" style="height: 55px; padding: 0 2.5rem; font-weight: 900;">AUTHORIZE LOG RETRIEVAL</button>
+      </div>
+
+      <!-- Modification Overlay -->
+      <div id="edit-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="glass-card" style="max-width: 650px; width: 90%; border-width: 2px;">
+            <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; color: var(--primary);">Modify Attendance Parameters</h3>
+            <form id="edit-attendance-form" style="display: grid; gap: 1.5rem;">
+              <input type="hidden" id="edit-student-id">
+              <input type="hidden" id="edit-record-id">
+              <div class="input-group">
+                  <label>Operational Date</label>
+                  <input type="date" id="edit-date" required style="font-weight: 900;">
+              </div>
+              <div class="input-group">
+                  <label>Stance (Attendance Status)</label>
+                  <select id="edit-status" required style="font-weight: 900;">
+                      <option value="present">VERIFIED PRESENT</option>
+                      <option value="absent">VERIFIED ABSENT</option>
+                  </select>
+              </div>
+              <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button type="submit" id="save-btn" class="btn btn-primary" style="flex: 2; justify-content: center; height: 50px;">COMMIT UPDATES</button>
+                <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; justify-content: center; height: 50px;">CANCEL</button>
+              </div>
+            </form>
+        </div>
+      </div>
+
+      <div id="stats-display" class="grid-auto" style="display: none; margin-bottom: 3.5rem;">
+        <div class="glass-card stat-card">
+          <span class="stat-label">Aggregated Presence Ratio</span>
+          <span class="stat-value" id="perc-val">0%</span>
+        </div>
+        <div class="glass-card stat-card">
+          <span class="stat-label">Verified Presence (Count)</span>
+          <span class="stat-value" id="present-val" style="color: var(--success);">0</span>
+        </div>
+        <div class="glass-card stat-card">
+          <span class="stat-label">Verified Absence (Count)</span>
+          <span class="stat-value" id="absent-val" style="color: var(--danger);">0</span>
+        </div>
+      </div>
+
+      <div class="glass-card" style="border-width: 2px; padding: 0; overflow: hidden;">
+        <div style="padding: 1.5rem 2rem; border-bottom: 2px solid var(--border-bold); background: var(--bg-secondary);">
+            <h3 style="text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px; margin: 0;">Audit Logs & Verification Traces</h3>
+        </div>
+        <div class="table-container">
+          <table id="logs-table">
+            <thead>
+              <tr>
+                <th>Log Timestamp</th>
+                <th>Authentication Status</th>
+                <th>Verification Trace (Personnel ID)</th>
+                <th style="text-align: right;">Operations</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="3" style="text-align: center; padding: 5rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Select a candidate to authorize structural log retrieval.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const search = document.getElementById("student-search");
+      
+      async function loadSelector() {
+        try {
+          const students = await ApiClient.get("/admin/students");
+          search.innerHTML = '<option value="">-- SELECT CANDIDATE FOR AUDIT --</option>' + 
+            students.map(s => `<option value="${s.uid}">${s.name.toUpperCase()} (#${s.uid.substring(0,8).toUpperCase()})</option>`).join('');
+        } catch (e) {
+          console.error("Registry sync failure", e);
+          search.innerHTML = '<option value="">FAILURE TO ACCEDE REGISTRY</option>';
+        }
+      }
+
+      firebase.auth().onAuthStateChanged(user => { if(user) loadSelector(); });
+
+      window.fetchLogs = async () => {
+        const id = search.value;
+        if (!id) return;
+        window.currentAuditId = id;
+
+        try {
+          const res = await ApiClient.get(`/admin/get-attendance?studentId=${id}`);
+          const tbody = document.querySelector("#logs-table tbody");
+          
+          if (!res || res.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Zero structural logs identified for this candidate profile.</td></tr>';
+            document.getElementById("stats-display").style.display = "none";
+            return;
+          }
+
+          const stats = AttendanceService.calculateStats(res);
+          document.getElementById("perc-val").innerText = `${stats.percentage}%`;
+          document.getElementById("present-val").innerText = stats.present;
+          document.getElementById("absent-val").innerText = stats.absent;
+          document.getElementById("stats-display").style.display = "grid";
+
+          tbody.innerHTML = res.sort((a,b) => new Date(b.date) - new Date(a.date)).map(r => `
+            <tr id="log-${r.id}">
+              <td style="font-weight: 900; font-family: monospace;">${new Date(r.date).toLocaleDateString('en-GB')}</td>
+              <td><span class="status-pill ${r.status === 'present' ? 'pill-success' : 'pill-danger'}">${r.status.toUpperCase()}</span></td>
+              <td style="font-family: monospace; font-size: 0.75rem; font-weight: 800; opacity: 0.7;">AUTH_${(r.markedBy || 'SYSTEM_INIT').toUpperCase().substring(0,10)}...</td>
+              <td style="text-align: right;">
+                 <button onclick="openEditModal('${r.id}', '${r.date}', '${r.status}')" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.7rem; font-weight: 800;">ADJUST</button>
+              </td>
+            </tr>
+          `).join('');
+
+        } catch (e) { alert("FETCH FAILURE: " + e.message); }
+      };
+
+      window.openEditModal = (id, date, status) => {
+          document.getElementById("edit-student-id").value = window.currentAuditId;
+          document.getElementById("edit-record-id").value = id;
+          document.getElementById("edit-date").value = date;
+          document.getElementById("edit-status").value = status;
+          document.getElementById("edit-modal").style.display = "flex";
+      };
+
+      window.closeEditModal = () => document.getElementById("edit-modal").style.display = "none";
+
+      document.getElementById("edit-attendance-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("save-btn");
+          const data = {
+              studentId: document.getElementById("edit-student-id").value,
+              recordId: document.getElementById("edit-record-id").value,
+              date: document.getElementById("edit-date").value,
+              status: document.getElementById("edit-status").value
+          };
+
+          try {
+              btn.disabled = true;
+              btn.innerText = "TRANSMITTING UPDATES...";
+              await ApiClient.put("/attendance/edit", data);
+              alert("ATTENDANCE LOG ADJUSTED SUCCESSFULLY.");
+              closeEditModal();
+              fetchLogs();
+          } catch(e) { alert("ADJUSTMENT FAILURE: " + e.message); }
+          finally {
+              btn.disabled = false;
+              btn.innerText = "COMMIT UPDATES";
+          }
+      };
+    });
+  </script>
+</body>
+</html>

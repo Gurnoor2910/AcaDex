@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authorize Submission | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Authorize Academic Submission</h2>
+          <p id="a-subtitle" style="color: var(--text-secondary);">Structural commitment of instructional tasks to the institutional registry</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 700px; border-width: 2px;">
+          <h3 id="a-title" style="margin-bottom: 1rem; color: var(--primary); font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px;">INITIALIZING TASK...</h3>
+          <p id="a-desc" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 2rem; font-weight: 600; text-transform: uppercase; line-height: 1.6;"></p>
+          
+          <div style="display: flex; justify-content: space-between; margin-bottom: 3rem; padding: 1.5rem; background: var(--bg-primary); border: 2px solid var(--border-bold); box-shadow: inset 4px 4px 0px rgba(0,0,0,0.05);">
+              <div>
+                <span style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Institutional Deadline</span>
+                <div id="a-due" style="font-weight: 900; font-family: monospace;">---</div>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Assessment Quotient (Max)</span>
+                <div id="a-marks" style="font-weight: 900; font-size: 1.5rem; line-height: 1;">---</div>
+              </div>
+          </div>
+
+          <form id="submit-form">
+            <div class="input-group">
+              <label>Structural Resource Hub (Submission File)</label>
+              <input type="file" id="s-file" required>
+            </div>
+            
+            <button id="submit-btn" type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; height: 55px; font-size: 1.1rem; margin-top: 1rem;">AUTHORIZE & COMMIT SUBMISSION</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let assignmentId;
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user && user.role !== 'student') window.location.href = "assignments.html";
+      
+      const params = new URLSearchParams(window.location.search);
+      assignmentId = params.get('id');
+      if (!assignmentId) return window.location.href = "assignments.html";
+      
+      try {
+          // In standard flow, fetch by ID. Here we find in list as per assignments.js structure
+          const list = await AssignmentService.getAll();
+          const assignment = list.find(a => a.id === assignmentId);
+          if (assignment) {
+              document.getElementById("a-title").innerText = assignment.title.toUpperCase();
+              document.getElementById("a-desc").innerText = assignment.description || "NO STRUCTURAL GUIDELINES PROVIDED.";
+              document.getElementById("a-due").innerText = new Date(assignment.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+              document.getElementById("a-marks").innerText = assignment.maxMarks;
+          }
+      } catch(e) { console.error("Task registry failure", e); }
+    });
+
+    document.getElementById("submit-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById("submit-btn");
+        const fileInput = document.getElementById("s-file");
+        const originalText = "AUTHORIZE & COMMIT SUBMISSION";
+        
+        if (!fileInput.files.length) { alert("VALIDATION ERROR: Target submission must be attached."); return; }
+
+        try {
+            const user = JSON.parse(localStorage.getItem("acadex_user"));
+            if (!user) throw new Error("Unauthenticated stream.");
+
+            btn.innerText = "AUTHENTICATING UPLOAD STREAM...";
+            btn.disabled = true;
+
+            // 1. Upload to Firebase Storage
+            const file = fileInput.files[0];
+            const storageRef = storage.ref(`submissions/${assignmentId}_${user.uid}_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`);
+            const snapshot = await storageRef.put(file);
+            const downloadUrl = await snapshot.ref.getDownloadURL();
+
+            btn.innerText = "COMMITTING TO REGISTRY...";
+
+            // 2. Commit to Backend Registry
+            await AssignmentService.submit(assignmentId, downloadUrl);
+            alert("ACADEMIC TASK SUCCESSFULLY COMMITTED.");
+            window.location.href = "assignments.html";
+        } catch (err) {
+            console.error(err);
+            alert("TRANSMISSION ERROR: " + err.message);
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    };
+  </script>
+</body>
+</html>

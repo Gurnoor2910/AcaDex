@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academic Tasks | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .timer-pill {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        background: var(--bg-primary);
+        border: 2px solid var(--border-bold);
+        font-family: monospace;
+        font-weight: 900;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        margin-top: 0.4rem;
+        box-shadow: 2px 2px 0px var(--border-bold);
+    }
+    .deadline-passed { background: var(--danger); color: white; border-color: var(--border-bold); }
+    .deadline-pending { background: var(--primary); color: var(--text-on-accent); }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Academic Task Registry</h2>
+          <p style="color: var(--text-secondary);">Structural tracking of instructional assignments and submission deadlines</p>
+        </div>
+        <div id="admin-actions" style="display: none;">
+           <button class="btn btn-primary" onclick="window.location.href='add-assignment.html'"><i class="fas fa-bolt"></i> CREATE NEW TASK</button>
+        </div>
+      </div>
+
+      <div class="glass-card" style="margin-top: 2.5rem; padding: 0; overflow: hidden; border-width: 2px;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Subject</th>
+                <th>Due Date</th>
+                <th>Max Marks</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assignments-tbody">
+               <tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">Synchronizing task registry...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let role = 'student';
+    
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      role = user.role;
+      if (role === 'faculty') {
+          document.getElementById('admin-actions').style.display = 'block';
+      }
+      
+      try {
+          const [assignments, mySubs] = await Promise.all([
+              AssignmentService.getAll(),
+              role === 'student' ? AssignmentService.getMySubmissions() : Promise.resolve([])
+          ]);
+          
+          const tbody = document.getElementById("assignments-tbody");
+          
+          if(!assignments || assignments.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No active assignments found.</td></tr>';
+              return;
+          }
+
+          tbody.innerHTML = assignments.map(a => {
+              const due = new Date(a.dueDate);
+              const now = new Date();
+              const isPast = now > due;
+              
+              const diffMs = due - now;
+              const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+              const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              
+              const timerStr = isPast ? 'EXPIRED' : `EXPIRES IN ${days}D ${hours}H`;
+              let timerClass = isPast ? 'deadline-passed' : 'deadline-pending';
+
+              let actionHtml = '';
+              
+              if (role === 'student') {
+                  const subState = mySubs.find(s => s.assignmentId === a.id);
+                  if (subState) {
+                      const subTime = new Date(subState.submittedAt);
+                      const wasLate = subTime > due;
+                      const statusTitle = subState.status === "graded" ? "GRADED" : (wasLate ? "LATE" : "SUBMITTED");
+                      const color = subState.status === "graded" ? "var(--primary)" : (wasLate ? "var(--danger)" : "var(--success)");
+                      
+                      let gradeHtml = "";
+                      if (subState.status === "graded") {
+                          gradeHtml = `<div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; font-weight: 700;">Score: <span style="color: ${color};">${subState.marksAwarded}/${a.maxMarks}</span></div>`;
+                      }
+
+                      actionHtml = `
+                          <div style="font-weight: 900; color: ${color}; text-transform: uppercase; font-size: 0.8rem;">${statusTitle}</div>
+                          ${gradeHtml}
+                      `;
+                  } else {
+                      actionHtml = `<a href="submit-assignment.html?id=${a.id}" class="btn btn-secondary" style="font-size: 0.7rem; padding: 0.4rem 0.8rem;">SUBMIT</a>`;
+                  }
+               } else {
+                  actionHtml = `
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <a href="submissions.html?id=${a.id}" class="btn btn-secondary" style="font-size: 0.6rem; padding: 0.4rem 0.6rem;"><i class="fas fa-file-invoice"></i> DETAILS</a>
+                    </div>
+                  `;
+               }
+               
+               return `
+                   <tr>
+                       <td>
+                         <div style="font-weight: 900; text-transform: uppercase; color: var(--primary);">${a.title}</div>
+                         <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px; font-weight: 700; text-transform: uppercase;">SUBJECT: ${a.subjectName} • BY: ${a.ownerName || 'ADMIN'}</div>
+                         ${a.fileUrl ? `<a href="${a.fileUrl}" target="_blank" style="font-size: 0.6rem; color: var(--info); font-weight: 900; text-decoration: underline; margin-top: 4px; display: inline-block;"><i class="fas fa-paperclip"></i> SOURCE MATERIAL</a>` : ''}
+                       </td>
+                       <td style="font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">${a.subjectName}</td>
+                       <td>
+                         <div style="font-weight: 900; font-family: monospace;">${due.toLocaleDateString('en-GB')}</div>
+                         <div class="timer-pill ${timerClass}">${timerStr}</div>
+                       </td>
+                       <td style="font-weight: 900; font-size: 1.1rem;">${a.maxMarks}</td>
+                       <td style="text-align: right;">${actionHtml}</td>
+                   </tr>
+               `;
+           }).join('');
+        } catch(e) { 
+            console.error("Registry sync failure", e); 
+            document.getElementById("assignments-tbody").innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger); font-weight: 900;">Error: ${e.message}</td></tr>`;
+        }
+    });
+
+    async function deleteAssignment(id) {
+        if(!confirm("Are you sure?")) return;
+        try {
+            await AssignmentService.delete(id);
+            alert("Deleted.");
+            window.location.reload();
+        } catch(e) { alert("Error: " + e.message); }
+    }
+  </script>
+</body>
+</html>

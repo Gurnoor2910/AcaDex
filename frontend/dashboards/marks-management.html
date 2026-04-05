@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examination Control | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Examination Control</h2>
+          <p style="color: var(--text-secondary);">Input scores and manage academic performance records</p>
+        </div>
+        <button class="btn btn-secondary" onclick="window.location.href='marks-report.html'" style="border-color: var(--primary); color: var(--primary);">STATISTICAL REPORTS <i class="fas fa-arrow-right"></i></button>
+      </div>
+
+      <div style="display: flex; justify-content: center; margin-top: 2rem;">
+        <div class="glass-card" style="width: 100%; max-width: 650px;">
+          <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Input Grade Records</h3>
+          <form id="marks-form" class="grid-2">
+            
+            <div class="input-group" style="grid-column: 1 / -1;">
+              <label>Select Subject Candidate</label>
+              <select id="student-select" required>
+                <option value="">Authenticating student list...</option>
+              </select>
+            </div>
+            
+            <div class="input-group">
+              <label>Academic Subject</label>
+              <select id="subject-select" required>
+                <option value="">Retrieving curriculum...</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label>Examination Category</label>
+              <select id="exam-select" required>
+                <option value="Midterm">MIDTERM EXAM</option>
+                <option value="Final">FINAL EXAM</option>
+                <option value="Assignment 1">ASSIGNMENT 01</option>
+                <option value="Assignment 2">ASSIGNMENT 02</option>
+                <option value="Project">PROJECT VIVA</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label>Earned Score</label>
+              <input type="number" id="score" required min="0" step="0.1" placeholder="0.0">
+            </div>
+
+            <div class="input-group">
+              <label>Maximum Possible</label>
+              <input type="number" id="max-marks" required min="1" value="100">
+            </div>
+
+            <div class="input-group" style="grid-column: 1 / -1;">
+              <label>Assessment Date</label>
+              <input type="date" id="marks-date" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submit-btn" style="grid-column: 1 / -1; justify-content: center; height: 55px; font-size: 1.1rem; margin-top: 1rem;">COMMIT SCORE TO REGISTRY</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script src="../js/marks.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      const is_admin = user && user.role === "admin";
+      
+      document.getElementById("marks-date").value = new Date().toISOString().split('T')[0];
+      
+      async function loadInitialData() {
+        try {
+          const students = is_admin 
+            ? await ApiClient.get("/admin/students")
+            : await ApiClient.get("/faculty/my-students");
+          
+          const select = document.getElementById("student-select");
+          select.innerHTML = students.length > 0
+            ? students.map(s => `<option value="${s.uid || s.studentId}">${s.name} (${s.course || 'N/A'})</option>`).join('')
+            : '<option value="">No authorized students found</option>';
+
+          const structure = await CourseService.getCurrentStructure();
+          const subSelect = document.getElementById("subject-select");
+          const allSubjects = [];
+          structure.forEach(c => {
+              c.semesters.forEach(s => {
+                  s.subjects.forEach(sub => allSubjects.push(sub.subjectName));
+              });
+          });
+          const uniqueSubjects = [...new Set(allSubjects)];
+          subSelect.innerHTML = uniqueSubjects.length > 0 
+            ? uniqueSubjects.map(s => `<option value="${s}">${s.toUpperCase()}</option>`).join('')
+            : '<option value="General">GENERAL CORE</option>';
+
+        } catch (e) { console.error("Grade dependency load failure", e); }
+      }
+
+      firebase.auth().onAuthStateChanged(user => { if(user) loadInitialData(); });
+
+      document.getElementById("marks-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("submit-btn");
+          const data = {
+              studentId: document.getElementById("student-select").value,
+              subject: document.getElementById("subject-select").value,
+              examType: document.getElementById("exam-select").value,
+              score: parseFloat(document.getElementById("score").value),
+              maxMarks: parseFloat(document.getElementById("max-marks").value),
+              date: document.getElementById("marks-date").value
+          };
+
+          try {
+              btn.disabled = true;
+              btn.innerText = "COMMITTING GRADE...";
+              await MarksService.addMark(data);
+              alert("Grade Successfully Comitted to Registry.");
+              document.getElementById("score").value = "";
+          } catch(err) {
+              alert("TRANSMISSION ERROR: " + err.message);
+          } finally {
+              btn.disabled = false;
+              btn.innerText = "COMMIT SCORE TO REGISTRY";
+          }
+      };
+    });
+  </script>
+</body>
+</html>

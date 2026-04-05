@@ -1,0 +1,178 @@
+/* ── Scroll Wrapper ──────────────────────────────────────────────────────────── */
+.tt-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* smooth momentum scroll on iOS */
+  scroll-behavior: smooth;
+  position: relative;
+  /* Scroll shadow indicators — left/right fade effect */
+  background:
+    linear-gradient(to right, var(--bg-secondary) 30px, transparent 30px),
+    linear-gradient(to left,  var(--bg-secondary) 30px, transparent 30px) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.15), transparent),
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.15), transparent) 100% 0;
+  background-repeat: no-repeat;
+  background-size: 30px 100%, 30px 100%, 12px 100%, 12px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Custom scrollbar — neobrutalist style */
+.tt-wrapper::-webkit-scrollbar { height: 10px; }
+.tt-wrapper::-webkit-scrollbar-track { background: var(--bg-primary); border-top: 2px solid var(--border-bold); }
+.tt-wrapper::-webkit-scrollbar-thumb { background: var(--primary); border: 2px solid var(--border-bold); }
+.tt-wrapper::-webkit-scrollbar-thumb:hover { background: var(--primary-hover); }
+/* Firefox */
+.tt-wrapper { scrollbar-width: thin; scrollbar-color: var(--primary) var(--bg-primary); }
+
+/* ── Table ───────────────────────────────────────────────────────────────────── */
+.tt-grid {
+  width: max-content; /* expand to full content width */
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px;
+  background: var(--bg-primary);
+}
+
+.timetable-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px;
+  background: var(--bg-primary);
+}
+
+.timetable-grid th, .tt-grid th {
+  background: var(--border-bold);
+  color: var(--bg-primary);
+  text-align: center;
+  padding: 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid var(--border-bold);
+  white-space: nowrap;
+}
+
+.timetable-grid td, .tt-grid td {
+  border: 2px solid var(--border-bold);
+  padding: 0;
+  height: 100px;
+  min-width: 140px;
+  background: var(--bg-secondary);
+  vertical-align: top;
+  box-shadow: 2px 2px 0px var(--border-bold);
+  transition: all 0.2s;
+}
+
+/* ── Sticky Time Column ──────────────────────────────────────────────────────── */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--primary) !important;
+  border-right: 3px solid var(--border-bold) !important;
+  box-shadow: 4px 0 0 var(--border-bold);
+}
+
+/* Sticky header corner cell */
+.tt-grid thead th:first-child,
+.timetable-grid thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: var(--border-bold) !important;
+  color: var(--bg-primary) !important;
+  border-right: 3px solid var(--border-bold) !important;
+}
+
+/* ── Today Column ────────────────────────────────────────────────────────────── */
+.current-day {
+  background: color-mix(in srgb, var(--primary) 15%, var(--border-bold)) !important;
+  color: var(--bg-primary) !important;
+  outline: 3px solid var(--primary);
+  outline-offset: -3px;
+}
+
+/* ── Time Slot ───────────────────────────────────────────────────────────────── */
+.time-slot {
+  width: 110px;
+  min-width: 90px;
+  background: var(--primary) !important;
+  font-weight: 900;
+  font-size: 0.7rem;
+  color: var(--text-on-accent) !important;
+  text-align: center;
+  vertical-align: middle !important;
+  border: 2px solid var(--border-bold) !important;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+/* ── Slot Content ────────────────────────────────────────────────────────────── */
+.slot-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  height: 100%;
+}
+
+.tt-block {
+  padding: 0.5rem;
+  border: 2px solid var(--border-bold);
+  border-left: 4px solid var(--course-color, var(--primary));
+  background: var(--bg-secondary);
+  box-shadow: 2px 2px 0px var(--border-bold);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  min-height: 80px;
+}
+.tt-block:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0px var(--border-bold); }
+.tt-block.current-slot { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--bg-secondary)); }
+.tt-block.past { opacity: 0.55; }
+.tt-block.pulsate { animation: pulsate 2s ease-in-out infinite; }
+
+@keyframes pulsate {
+  0%, 100% { box-shadow: 2px 2px 0px var(--border-bold); }
+  50%       { box-shadow: 4px 4px 0px var(--primary); }
+}
+
+.tt-course-tag { font-size: 0.55rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--course-color, var(--primary)); margin-bottom: 2px; }
+.tt-subject { font-weight: 950; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-primary); text-transform: uppercase; line-height: 1.2; }
+.tt-meta { display: flex; flex-direction: column; gap: 2px; font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; }
+.tt-meta i { margin-right: 3px; color: var(--primary); }
+.err-tag { margin-top: 4px; font-size: 0.55rem; font-weight: 900; color: var(--danger); text-transform: uppercase; }
+.tt-info { font-size: 0.65rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; }
+
+/* ── Empty Cell ──────────────────────────────────────────────────────────────── */
+.empty-cell {
+  background: repeating-linear-gradient(45deg, var(--bg-primary), var(--bg-primary) 10px, var(--bg-secondary) 10px, var(--bg-secondary) 20px);
+  opacity: 0.4;
+  border-style: dashed !important;
+}
+
+/* ── Legend ──────────────────────────────────────────────────────────────────── */
+.tt-legend { display: flex; flex-wrap: wrap; gap: 1rem; padding: 1rem 0; }
+.legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+.legend-dot { width: 12px; height: 12px; border: 2px solid var(--border-bold); display: inline-block; flex-shrink: 0; }
+
+/* ── Mobile Scroll Hint ──────────────────────────────────────────────────────── */
+.scroll-hint {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 0.5rem 0 1rem;
+  animation: fadeHint 3s ease forwards;
+}
+@keyframes fadeHint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (max-width: 768px) {
+  .scroll-hint { display: flex; }
+  .timetable-grid td, .tt-grid td { min-width: 120px; height: 90px; }
+  .tt-subject { font-size: 0.75rem; }
+  .time-slot { min-width: 70px; font-size: 0.6rem; }
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Registry | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .marking-grid { display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 2.5rem; }
+    @media (max-width: 992px) { .marking-grid { grid-template-columns: 1fr; } }
+    
+    .radio-input-group { 
+      display: flex; 
+      gap: 1.5rem; 
+      margin-top: 1rem; 
+      padding: 1rem; 
+      background: var(--bg-primary); 
+      border: 2px solid var(--border-bold); 
+      box-shadow: inset 3px 3px 0px rgba(0,0,0,0.05);
+    }
+    .radio-label { 
+      display: flex; 
+      align-items: center; 
+      gap: 0.5rem; 
+      cursor: pointer; 
+      font-weight: 900; 
+      text-transform: uppercase; 
+      font-size: 0.8rem;
+    }
+    .status-pill { border-radius: 0; font-weight: 900; text-transform: uppercase; font-size: 0.65rem; padding: 0.3rem 0.6rem; border: 2px solid var(--border-bold); }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Attendance Registry</h2>
+          <p style="color: var(--text-secondary);">Mark and verify student presence for active academic sessions</p>
+        </div>
+        <button class="btn btn-secondary" onclick="window.location.href='attendance-report.html'">STATISTICAL REPORTS <i class="fas fa-arrow-right"></i></button>
+      </div>
+
+      <div class="marking-grid">
+        <!-- Input Panel -->
+        <div class="glass-card">
+          <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Session Log Entry</h3>
+          <form id="attendance-form">
+            <div class="input-group">
+              <label>Select Target Candidate</label>
+              <select id="student-select" required>
+                <option value="">Authenticating cohorts...</option>
+              </select>
+            </div>
+            
+            <div class="input-group">
+              <label>Academic Unit (Subject)</label>
+              <select id="subject-select" required>
+                <option value="">Scanning curriculum...</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label>Session Timestamp (Date)</label>
+              <input type="date" id="attendance-date" required>
+            </div>
+
+            <div class="input-group">
+              <label>Candidate Presence Status</label>
+              <div class="radio-input-group">
+                <label class="radio-label" style="color: var(--success);">
+                  <input type="radio" name="status" value="present" checked style="width: 20px; height: 20px;"> PRESENT
+                </label>
+                <label class="radio-label" style="color: var(--danger);">
+                  <input type="radio" name="status" value="absent" style="width: 20px; height: 20px;"> ABSENT
+                </label>
+              </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1.5rem;">
+              <label>Verified Instruction Personnel</label>
+              <input type="text" id="teacher-name" readonly style="font-weight: 900; background: var(--bg-primary);">
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submit-btn" style="width: 100%; justify-content: center; height: 55px; margin-top: 2rem; font-size: 1.1rem;">COMMIT TO REGISTRY</button>
+          </form>
+        </div>
+
+        <!-- Real-time Verification Panel -->
+        <div class="glass-card">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2rem;">
+            <h3 style="margin: 0; text-transform: uppercase; font-weight: 900;">Daily Session verification</h3>
+            <span id="current-date-label" style="font-family: monospace; font-weight: 900; background: var(--primary); color: var(--text-primary); padding: 0.2rem 0.6rem; border: 2px solid var(--border-bold); box-shadow: 2px 2px 0px var(--border-bold);">[DATE]</span>
+          </div>
+          <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Candidate Name</th>
+                  <th>Academic Unit</th>
+                  <th style="text-align: right;">Operations</th>
+                </tr>
+              </thead>
+              <tbody id="daily-logs-body">
+                <tr><td colspan="3" style="text-align: center; padding: 4rem; color: var(--text-secondary);">Select session date to view candidate logs.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <!-- Modification Overlay -->
+      <div id="edit-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+        <div class="glass-card" style="max-width: 550px; width: 90%; border-width: 2px;">
+            <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; color: var(--primary);">Adjust Session Parameter</h3>
+            <form id="edit-attendance-form" style="display: grid; gap: 1.5rem;">
+                <input type="hidden" id="edit-student-id">
+                <input type="hidden" id="edit-record-id">
+                <div class="input-group">
+                    <label>Presence Stance</label>
+                    <select id="edit-status" required style="font-weight: 900;">
+                        <option value="present">VERIFIED PRESENT</option>
+                        <option value="absent">VERIFIED ABSENT</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button type="submit" id="save-btn" class="btn btn-primary" style="flex: 2; justify-content: center; height: 50px;">COMMIT ADJUSTMENT</button>
+                    <button type="button" onclick="closeEditModal()" class="btn btn-secondary" style="flex: 1; justify-content: center; height: 50px;">CANCEL</button>
+                </div>
+            </form>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      const is_admin = user && user.role === "admin";
+
+      document.getElementById("teacher-name").value = user ? user.name.toUpperCase() : "AUTHENTICATING...";
+      const dateInput = document.getElementById("attendance-date");
+      dateInput.value = new Date().toISOString().split('T')[0];
+      
+      async function loadInitialData() {
+        try {
+          const students = is_admin 
+            ? await ApiClient.get("/admin/students")
+            : await ApiClient.get("/faculty/my-students");
+          
+          const sSelect = document.getElementById("student-select");
+          sSelect.innerHTML = (students && students.length > 0) 
+            ? students.map(s => `<option value="${s.uid || s.studentId}">${s.name.toUpperCase()} (${(s.course || 'GENERAL').toUpperCase()})</option>`).join('')
+            : '<option value="">NO AUTHORIZED COHORTS FOUND</option>';
+
+          const structure = await CourseService.getCurrentStructure();
+          const subSelect = document.getElementById("subject-select");
+          const allSubjects = [];
+          structure.forEach(c => {
+            c.semesters.forEach(s => {
+                   s.subjects.forEach(sub => allSubjects.push(sub.subjectName));
+            });
+          });
+
+          const uniqueSubjects = [...new Set(allSubjects)].sort();
+          subSelect.innerHTML = uniqueSubjects.length > 0
+            ? uniqueSubjects.map(s => `<option value="${s}">${s.toUpperCase()}</option>`).join('')
+            : '<option value="General">GENERAL CORE</option>';
+        } catch (e) { console.error("Identity load failure:", e); }
+      }
+
+      async function refreshLogs() {
+          const date = dateInput.value;
+          document.getElementById("current-date-label").innerText = date;
+          const tbody = document.getElementById("daily-logs-body");
+          try {
+              const logs = await AttendanceService.getClassAttendance(date);
+              if (!logs || logs.length === 0) {
+                  tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 3rem;">No session logs recorded for this timestamp.</td></tr>';
+                  return;
+              }
+              tbody.innerHTML = logs.map(l => `
+                <tr>
+                    <td style="font-weight: 800; text-transform: uppercase;">${l.studentName || 'UNKNOWN CANDIDATE'}</td>
+                    <td style="font-weight: 700; color: var(--text-secondary); font-size: 0.75rem;">${l.subject.toUpperCase()}</td>
+                    <td style="text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem;">
+                        <span class="status-pill ${l.status === 'present' ? 'pill-success' : 'pill-danger'}">
+                            ${l.status}
+                        </span>
+                        <button onclick="openEditModal('${l.studentId}', '${l.id}', '${l.status}')" class="btn btn-secondary" style="padding: 0.3rem 0.7rem; font-size: 0.6rem;">ADJUST</button>
+                    </td>
+                </tr>
+              `).join('');
+          } catch(e) { tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 2rem; color: var(--danger);">TRANSMISSION FAILURE: ' + e.message + '</td></tr>'; }
+      }
+
+      dateInput.onchange = refreshLogs;
+      
+      window.openEditModal = (sid, rid, status) => {
+          document.getElementById("edit-student-id").value = sid;
+          document.getElementById("edit-record-id").value = rid;
+          document.getElementById("edit-status").value = status;
+          document.getElementById("edit-modal").style.display = "flex";
+      };
+
+      window.closeEditModal = () => document.getElementById("edit-modal").style.display = "none";
+
+      document.getElementById("edit-attendance-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("save-btn");
+          const data = {
+              studentId: document.getElementById("edit-student-id").value,
+              recordId: document.getElementById("edit-record-id").value,
+              status: document.getElementById("edit-status").value
+          };
+
+          try {
+              btn.disabled = true;
+              btn.innerText = "TRANSMITTING UPDATES...";
+              await AttendanceService.edit(data);
+              alert("SESSION LOG ADJUSTED SUCCESSFULLY.");
+              closeEditModal();
+              refreshLogs();
+          } catch(err) { alert("ADJUSTMENT ERROR: " + err.message); }
+          finally {
+              btn.disabled = false;
+              btn.innerText = "COMMIT ADJUSTMENT";
+          }
+      };
+
+      document.getElementById("attendance-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("submit-btn");
+          const data = {
+              studentId: document.getElementById("student-select").value,
+              subject: document.getElementById("subject-select").value,
+              date: dateInput.value,
+              status: document.querySelector('input[name="status"]:checked').value
+          };
+
+          try {
+              btn.disabled = true;
+              btn.innerText = "COMTTING LOGS...";
+              await AttendanceService.mark(data);
+              alert("ATTENDANCE LOG AUTHORIZED.");
+              refreshLogs();
+          } catch(err) {
+              alert("TRANSMISSION ERROR: " + err.message);
+          } finally {
+              btn.disabled = false;
+              btn.innerText = "COMMIT TO REGISTRY";
+          }
+      };
+
+      firebase.auth().onAuthStateChanged(user => { 
+          if(user) { loadInitialData().then(() => refreshLogs()); } 
+      });
+    });
+  </script>
+</body>
+</html>

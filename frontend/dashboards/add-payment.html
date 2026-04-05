@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Record Transaction | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .payment-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2.5rem; }
+    @media (max-width: 992px) { .payment-grid { grid-template-columns: 1fr; } }
+    
+    .financial-summary-box { 
+      background: var(--bg-secondary); 
+      border: 2px solid var(--border-bold); 
+      box-shadow: var(--shadow); 
+      padding: 2.5rem; 
+      position: sticky;
+      top: 2rem;
+    }
+    
+    .currency-display { font-size: 2.8rem; font-weight: 900; -webkit-text-stroke: 1.5px var(--border-bold); line-height: 1; }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Record Institutional Transaction</h2>
+          <p style="color: var(--text-secondary);">Register and authorize student fee credits to the institutional ledger</p>
+        </div>
+        <button onclick="history.back()" class="btn btn-secondary">← CANCEL & RETURN</button>
+      </div>
+
+      <div class="payment-grid">
+        <!-- Transaction Form -->
+        <div class="glass-card" style="border-width: 2px;">
+          <h3 style="margin-bottom: 2.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: -0.5px;">Transaction Parameters</h3>
+          <form id="payment-form">
+            <div class="input-group">
+              <label>Target Candidate (Student)</label>
+              <select id="student-select" required onchange="handleStudentSelect()">
+                  <option value="">AUTHENTICATING COHORTS...</option>
+              </select>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+              <div class="input-group">
+                <label>Institutional Amount (₹)</label>
+                <input type="number" id="pay-amount" required placeholder="0.00" min="1" style="font-weight: 900; font-size: 1.2rem;">
+              </div>
+              <div class="input-group">
+                <label>Audit Mode (Payment Method)</label>
+                <select id="pay-mode" required>
+                  <option value="Cash">PHYSICAL CASH</option>
+                  <option value="UPI">UPI / DIGITAL TRANSFER</option>
+                  <option value="Net Banking">INSTITUTIONAL NET BANKING</option>
+                  <option value="Card">CREDIT / DEBIT CARD</option>
+                  <option value="Cheque">PHYSICAL CHEQUE</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+              <label>Transaction Timestamp (Date)</label>
+              <input type="date" id="pay-date" required>
+            </div>
+
+            <div class="input-group" style="margin-top: 1rem;">
+              <label>Institutional Audit Notes (Optional)</label>
+              <textarea id="pay-notes" placeholder="Structural reference, receipt number, or transaction hash..." style="background: var(--bg-primary); border: 2px solid var(--border-bold); color: var(--text-primary); padding: 1rem; width: 100%; min-height: 120px; font-weight: 800; text-transform: uppercase; font-size: 0.8rem;"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="save-btn" style="width: 100%; justify-content: center; height: 55px; font-size: 1.1rem; margin-top: 2rem;">AUTHORIZE & COMMIT TRANSACTION</button>
+          </form>
+        </div>
+
+        <!-- Financial Intelligence Sidebar -->
+        <div class="financial-summary-box">
+          <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; font-size: 0.9rem;">Candidate Liability Context</h3>
+          <div id="summary-content" style="text-align: center; color: var(--text-secondary); font-weight: 800; text-transform: uppercase; padding: 2rem;">
+             SELECT CANDIDATE TO ANALYZE INSTITUTIONAL LEDGER
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/fees.js"></script>
+  <script>
+    let allStudents = [];
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (!user || user.role !== "admin") window.location.href = "unauthorized.html";
+
+      document.getElementById("pay-date").value = new Date().toISOString().split('T')[0];
+      
+      const select = document.getElementById("student-select");
+      try {
+          allStudents = await FeesService.getAllFees();
+          select.innerHTML = '<option value="">-- SELECT CANDIDATE --</option>' + 
+            allStudents.map(s => `<option value="${s.studentId}">${s.name.toUpperCase()} (#${s.studentId.substring(0,8)})</option>`).join('');
+      } catch(e) { console.error("Registry sync failure", e); select.innerHTML = '<option value="">FAILURE TO LOAD REGISTRY</option>'; }
+
+      document.getElementById("payment-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("save-btn");
+          const originalText = "AUTHORIZE & COMMIT TRANSACTION";
+          
+          try {
+              btn.disabled = true;
+              btn.innerText = "COMTTING TO INSTITUTIONAL LEDGER...";
+              
+              await FeesService.addPayment(
+                  document.getElementById("student-select").value,
+                  document.getElementById("pay-amount").value,
+                  document.getElementById("pay-date").value,
+                  document.getElementById("pay-mode").value,
+                  document.getElementById("pay-notes").value
+              );
+              
+              alert("TRANSACTION AUTHORIZED & COMMITTED.");
+              window.location.href = "fees-management.html";
+          } catch(err) { 
+              alert("TRANSMISSION ERROR: " + err.message); 
+              btn.disabled = false;
+              btn.innerText = originalText;
+          }
+      }
+    });
+
+    function handleStudentSelect() {
+        const id = document.getElementById("student-select").value;
+        const summaryDiv = document.getElementById("summary-content");
+        if (!id) {
+            summaryDiv.innerHTML = "SELECT CANDIDATE TO ANALYZE INSTITUTIONAL LEDGER";
+            return;
+        }
+
+        const student = allStudents.find(s => s.studentId === id);
+        if (student) {
+            const status = FeesService.getStatusInfo(student.pendingAmount, student.feesPaid);
+            const paid = student.totalFees - student.pendingAmount;
+            const liabilityColor = student.pendingAmount > 0 ? 'var(--danger)' : 'var(--success)';
+            
+            summaryDiv.innerHTML = `
+              <div style="text-align: left;">
+                <div style="font-size: 0.65rem; text-transform: uppercase; font-weight: 900; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                   NET OUTSTANDING LIABILITY
+                </div>
+                <div class="currency-display" style="color: ${liabilityColor};">
+                   ₹${student.pendingAmount.toLocaleString()}
+                </div>
+                
+                <div style="margin-top: 2rem; border-top: 3px solid var(--border-bold); padding-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">
+                       <span style="color: var(--text-secondary);">ASSESSED PROGRAM FEES</span>
+                       <span style="color: var(--text-primary);">₹${student.totalFees.toLocaleString()}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">
+                       <span style="color: var(--text-secondary);">VERIFIED CREDITS LOGGED</span>
+                       <span style="color: var(--success);">₹${paid.toLocaleString()}</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2.5rem; text-align: center;">
+                    <span class="status-pill" style="background: ${status.bg}; color: white; border: none; font-weight: 900; text-transform: uppercase; padding: 0.4rem 1rem;">
+                        ${status.text}
+                    </span>
+                </div>
+              </div>
+            `;
+        }
+    }
+  </script>
+</body>
+</html>

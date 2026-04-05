@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Master Ledger | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .admin-grid { display: grid; grid-template-columns: 320px 1fr; gap: 3rem; }
+    @media (max-width: 992px) { .admin-grid { grid-template-columns: 1fr; } }
+    
+    .student-explorer { 
+      background: var(--bg-secondary); 
+      border: 2px solid var(--border-bold); 
+      box-shadow: var(--shadow); 
+      max-height: calc(100vh - 250px); 
+      overflow-y: auto; 
+    }
+    .explorer-item { 
+      padding: 1.25rem; 
+      border-bottom: 1px solid var(--border); 
+      cursor: pointer; 
+      transition: 0.2s; 
+    }
+    .explorer-item:hover { background: rgba(0,0,0,0.05); }
+    [data-theme="dark"] .explorer-item:hover { background: rgba(255,b255,255,0.05); }
+    .explorer-item.active { background: var(--primary); color: #000; border-bottom: 2px solid var(--border-bold); }
+    
+    .ledger-cycle { margin-bottom: 4rem; }
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 2rem; margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 2px dashed var(--border); }
+    .kpi-label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem; display: block; }
+    .kpi-value { font-size: 1.5rem; font-weight: 900; color: var(--text-primary); }
+
+    .txn-badge { padding: 0.2rem 0.6rem; font-weight: 800; font-size: 0.65rem; border: 2px solid var(--border-bold); text-transform: uppercase; }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Financial Master Ledger</h2>
+          <p style="color: var(--text-secondary);">Manage multi-year academic cycles and payment reconciliation</p>
+        </div>
+        <button class="btn btn-primary" onclick="openRecordModal()"><i class="fas fa-bolt"></i> GENERATE NEW CYCLE</button>
+      </div>
+
+      <div class="admin-grid">
+        <!-- Sidebar Explorer -->
+        <div class="student-explorer">
+             <div style="padding: 1.25rem; font-weight: 900; text-transform: uppercase; border-bottom: 2px solid var(--border-bold); background: var(--bg-primary); font-size: 0.8rem; letter-spacing: 1px;">Candidate Registry</div>
+             <div id="student-anchors">
+                <div style="padding: 3rem; text-align: center; opacity: 0.5; font-weight: 700;">FETCHING REGISTRY...</div>
+             </div>
+        </div>
+
+        <!-- Ledger Content -->
+        <div id="ledger-body">
+             <div class="glass-card" style="text-align: center; padding: 6rem; border: 2px dashed var(--border);">
+                <div style="font-size: 3rem; margin-bottom: 1.5rem;"><i class="fas fa-credit-card"></i></div>
+                <h3 style="text-transform: uppercase; font-weight: 900;">Authorize Ledger View</h3>
+                <p style="color: var(--text-secondary); font-weight: 600;">Select a candidate from the registry to view their full financial history.</p>
+             </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Cycle Generation Modal -->
+  <div id="record-modal" class="modal-overlay" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="width: 100%; max-width: 550px;">
+        <h3 style="margin-bottom: 2rem; color: var(--primary); text-transform: uppercase; font-weight: 900;">Initialize Fee Cycle</h3>
+        <form id="record-form">
+            <div class="input-group">
+                <label>Target Candidate</label>
+                <select id="record-student-id" required></select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="input-group">
+                    <label>Academic Semester</label>
+                    <input type="number" id="record-semester" required min="1" max="12" value="1">
+                </div>
+                <div class="input-group">
+                    <label>Academic Year</label>
+                    <input type="text" id="record-year" required placeholder="e.g. 2025-26">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem;">
+              <div class="input-group">
+                  <label>Total Assessment (₹)</label>
+                  <input type="number" id="record-amount" required placeholder="50000">
+              </div>
+              <div class="input-group">
+                  <label>Maturity (Due Date)</label>
+                  <input type="date" id="record-due" required>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="input-group">
+                    <label>Penalty Strategy</label>
+                    <select id="record-penalty-type">
+                        <option value="fixed">FIXED QUANTUM</option>
+                        <option value="per-day">PER-DAY ACCRUAL</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Rate (₹)</label>
+                    <input type="number" id="record-penalty-rate" required value="100">
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 2; justify-content: center; height: 50px;">COMMIT CYCLE TO LEDGER</button>
+                <button type="button" class="btn btn-secondary" style="flex: 1; justify-content: center;" onclick="closeRecordModal()">CANCEL</button>
+            </div>
+        </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/fees.js"></script>
+  <script src="../js/studentService.js"></script>
+  <script>
+    let selectedStudentId = null;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user.role !== "admin") window.location.href = "unauthorized.html";
+
+      await loadStudents();
+      
+      document.getElementById("record-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = e.target.querySelector('button[type="submit"]');
+          btn.disabled = true; btn.innerText = "COMMITTING...";
+          
+          const payload = {
+              studentId: document.getElementById("record-student-id").value,
+              semester: document.getElementById("record-semester").value,
+              academicYear: document.getElementById("record-year").value,
+              totalAmount: document.getElementById("record-amount").value,
+              dueDate: document.getElementById("record-due").value,
+              penaltyType: document.getElementById("record-penalty-type").value,
+              penaltyRate: document.getElementById("record-penalty-rate").value,
+              gracePeriodDays: 0
+          };
+          
+          try {
+              await FeesService.createRecord(payload.studentId, payload);
+              alert("Fee Cycle Successfully Committed to Ledger.");
+              closeRecordModal();
+              if (selectedStudentId === payload.studentId) loadLedger(selectedStudentId);
+          } catch(err) { alert("LEDGER ERROR: " + err.message); }
+          finally { btn.disabled = false; btn.innerText = "COMMIT CYCLE TO LEDGER"; }
+      }
+    });
+
+    async function loadStudents() {
+        try {
+            const students = await StudentService.listStudents();
+            const container = document.getElementById("student-anchors");
+            const select = document.getElementById("record-student-id");
+
+            container.innerHTML = students.map(s => `
+                <div class="explorer-item" id="anchor-${s.uid}" onclick="selectStudent('${s.uid}')">
+                    <div style="font-weight: 800; font-size: 0.9rem; text-transform: uppercase;">${s.name}</div>
+                    <div style="font-size: 0.7rem; opacity: 0.6; font-family: monospace;">LOG: ${s.email}</div>
+                </div>
+            `).join('') || '<div style="padding: 2rem; text-align: center;">Registry Empty.</div>';
+
+            select.innerHTML = students.map(s => `<option value="${s.uid}">${s.name.toUpperCase()}</option>`).join('');
+        } catch(e) { console.error("Registry load failure", e); }
+    }
+
+    function selectStudent(sid) {
+        document.querySelectorAll('.explorer-item').forEach(i => i.classList.remove('active'));
+        const el = document.getElementById(`anchor-${sid}`);
+        if(el) el.classList.add('active');
+        selectedStudentId = sid;
+        loadLedger(sid);
+    }
+
+    async function loadLedger(sid) {
+        const body = document.getElementById("ledger-body");
+        body.innerHTML = '<div class="glass-card" style="text-align: center; padding: 5rem; border: 2px dashed var(--border);">FETCHING FINANCIAL RECORDS...</div>';
+        try {
+            const records = await FeesService.getLedger(sid);
+            if (records.length === 0) {
+                body.innerHTML = `<div class="glass-card" style="text-align: center; padding: 6rem; border: 2px dashed var(--border);">
+                    <h3 style="text-transform: uppercase; font-weight: 900;">Ledger Entry Missing</h3>
+                    <p style="color: var(--text-secondary); margin-top: 1rem;">No financial cycles discovered for this candidate in the current horizon.</p>
+                </div>`;
+                return;
+            }
+            body.innerHTML = records.map(r => renderRecordAdmin(r)).join('');
+        } catch(e) { body.innerHTML = `ERROR: ${e.message}`; }
+    }
+
+    function renderRecordAdmin(r) {
+        const status = FeesService.getRecordStatus(r.status);
+        const txns = r.transactions || [];
+
+        return `
+            <div class="ledger-cycle glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">Relational Cycle ID: ${r.recordId.substring(0,8)}</div>
+                        <h2 style="font-weight: 900; letter-spacing: -1px; text-transform: uppercase;">${r.academicYear} | SEM ${r.semester}</h2>
+                    </div>
+                    <span class="txn-badge" style="background: ${status.bg}; color: white; border: none; padding: 0.4rem 1rem;">
+                        ${status.text}
+                    </span>
+                </div>
+
+                <div class="kpi-row">
+                    <div>
+                        <span class="kpi-label">Institutional Target</span>
+                        <div class="kpi-value">₹${r.totalAmount.toLocaleString()}</div>
+                    </div>
+                    <div>
+                        <span class="kpi-label">Reconciled Funds</span>
+                        <div class="kpi-value" style="color: var(--success);">₹${r.paidAmount.toLocaleString()}</div>
+                    </div>
+                    <div>
+                        <span class="kpi-label">Exposure (Pending)</span>
+                        <div class="kpi-value" style="color: ${r.pendingAmount > 0 ? 'var(--danger)' : 'inherit'};">
+                            ₹${r.pendingAmount.toLocaleString()}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="kpi-label">Cycle Maturity</span>
+                        <div class="kpi-value" style="font-size: 1.1rem;">${new Date(r.dueDate).toLocaleDateString('en-GB')}</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <h4 style="margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">Transaction Verification Queue</h4>
+                    ${txns.length > 0 ? `
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Quantum</th>
+                                        <th>Method</th>
+                                        <th>Verification</th>
+                                        <th style="text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${txns.map(t => {
+                                        const ts = FeesService.getTxnStatus(t.status);
+                                        return `
+                                            <tr>
+                                                <td style="font-weight: 800;">${new Date(t.paymentDate).toLocaleDateString('en-GB')}</td>
+                                                <td style="font-weight: 900; color: var(--success);">₹${parseFloat(t.amountPaid).toLocaleString()}</td>
+                                                <td style="font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">${t.paymentMethod}</td>
+                                                <td><span class="txn-badge" style="background: ${ts.bg}; color: white; border: none;">${ts.text}</span></td>
+                                                <td style="text-align: right;">
+                                                    ${t.status === 'pending' ? `<button class="btn btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.6rem; border-color: var(--border-bold);" onclick="approveTxn('${r.recordId}', '${t.txnId}')">AUTHORIZE</button>` : '---'}
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : '<div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); opacity: 0.5;">NO PENDING OR RECONCILED TRANSACTIONS DISCOVERED.</div>'}
+                </div>
+            </div>
+        `;
+    }
+
+    async function approveTxn(rid, tid) {
+        if (!confirm("AUTHORIZATION: Commit this payment to the master ledger and update student standing?")) return;
+        try {
+            await FeesService.approveTransaction(selectedStudentId, rid, tid);
+            loadLedger(selectedStudentId);
+        } catch(e) { alert("RECONCILIATION FAILURE: " + e.message); }
+    }
+
+    function openRecordModal() { 
+        document.getElementById("record-due").value = new Date().toISOString().split('T')[0];
+        document.getElementById("record-modal").style.display = "flex"; 
+    }
+    function closeRecordModal() { document.getElementById("record-modal").style.display = "none"; }
+  </script>
+</body>
+</html>

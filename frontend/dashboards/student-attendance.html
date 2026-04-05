@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presence Analytics | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    .progress-track { width: 100%; height: 12px; background: var(--bg-primary); border: 2px solid var(--border-bold); margin-top: 1.5rem; position: relative; }
+    .progress-bar { height: 100%; width: 0%; transition: width 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem; margin-bottom: 3rem; }
+    .stat-card { border: 2px solid var(--border-bold); box-shadow: var(--shadow); background: var(--bg-secondary); position: relative; }
+    .stat-value { font-size: 2.8rem; font-weight: 900; line-height: 1; -webkit-text-stroke: 1px var(--border-bold); }
+    
+    .filter-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; padding: 1.5rem; background: var(--bg-secondary); border: 2px solid var(--border-bold); box-shadow: var(--shadow); align-items: flex-end; }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Presence Analytics</h2>
+          <p style="color: var(--text-secondary);">Structural audit of your academic participation metrics</p>
+        </div>
+      </div>
+
+      <!-- Performance Quotient -->
+      <div class="stats-grid">
+        <div class="glass-card stat-card">
+          <span class="stat-label">Subject Mastery Ratio</span>
+          <span class="stat-value" id="stats-perc" style="color: var(--primary);">0%</span>
+          <div class="progress-track">
+            <div id="perc-bar" class="progress-bar" style="background: var(--primary);"></div>
+          </div>
+        </div>
+        <div class="glass-card stat-card" style="border-color: var(--success);">
+          <span class="stat-label">Verified Presence</span>
+          <span class="stat-value" id="stats-present" style="color: var(--success);">0</span>
+          <p style="font-weight: 800; font-size: 0.7rem; text-transform: uppercase; margin-top: 0.5rem; color: var(--text-secondary);">
+            Out of <span id="stats-total" style="color: var(--text-primary);">0</span> total sessions
+          </p>
+        </div>
+        <div class="glass-card stat-card" style="border-color: var(--danger);">
+          <span class="stat-label">Session Absence</span>
+          <span class="stat-value" id="stats-absent" style="color: var(--danger);">0</span>
+          <p style="font-weight: 800; font-size: 0.7rem; text-transform: uppercase; margin-top: 0.5rem; color: var(--danger);">
+            IDENTIFIED AS CRITICAL RISK
+          </p>
+        </div>
+      </div>
+
+      <!-- Analytical Filters -->
+      <div class="glass-card filter-row">
+        <div class="input-group" style="margin-bottom: 0;">
+          <label>Academic Unit</label>
+          <select id="filter-subject">
+            <option value="">ALL SUBJECTS</option>
+          </select>
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label>Chronological Start</label>
+          <input type="date" id="filter-from">
+        </div>
+        <div class="input-group" style="margin-bottom: 0;">
+          <label>Chronological End</label>
+          <input type="date" id="filter-to">
+        </div>
+        <button onclick="applyFilters()" class="btn btn-primary" style="height: 50px; justify-content: center;">FILTER REGISTRY</button>
+      </div>
+
+      <div class="glass-card">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Presence Audit Log</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Session Date</th>
+                <th>Academic Unit</th>
+                <th>Presence Status</th>
+                <th>Instruction Personnel</th>
+              </tr>
+            </thead>
+            <tbody id="history-body">
+              <tr><td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-secondary);">Synchronizing with institutional registry...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/attendance.js"></script>
+  <script>
+    let rawRecords = [];
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      
+      function populateSubjectFilter(records) {
+          const subjects = [...new Set(records.map(r => r.subject).filter(Boolean))].sort();
+          const select = document.getElementById('filter-subject');
+          select.innerHTML = '<option value="">ALL SUBJECTS</option>';
+          subjects.forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s;
+              opt.textContent = s.toUpperCase();
+              select.appendChild(opt);
+          });
+      }
+
+      async function init() {
+          try {
+              rawRecords = await AttendanceService.getMyAttendance();
+              populateSubjectFilter(rawRecords);
+              render(rawRecords);
+          } catch(e) { console.error("Registry sync failure", e); }
+      }
+
+      function render(records) {
+          const stats = AttendanceService.calculateStats(records);
+          document.getElementById("stats-perc").innerText = stats.percentage + "%";
+          document.getElementById("perc-bar").style.width = stats.percentage + "%";
+          document.getElementById("stats-present").innerText = stats.present;
+          document.getElementById("stats-total").innerText = stats.total;
+          document.getElementById("stats-absent").innerText = stats.absent;
+
+          const bar = document.getElementById("perc-bar");
+          if (stats.percentage < 75) bar.style.background = "var(--danger)";
+          else if (stats.percentage < 85) bar.style.background = "#F59E0B";
+          else bar.style.background = "var(--success)";
+
+          const tbody = document.getElementById("history-body");
+          if (!records || records.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 3rem;">No presence records detected in the registry.</td></tr>';
+              return;
+          }
+
+          tbody.innerHTML = records.map(r => `
+            <tr>
+              <td style="font-weight: 800; font-family: monospace;">${new Date(r.date).toLocaleDateString('en-GB')}</td>
+              <td style="font-weight: 900; color: var(--primary); text-transform: uppercase;">${r.subject}</td>
+              <td>
+                <span class="status-pill ${r.status === 'present' ? 'pill-success' : 'pill-danger'}">
+                    ${r.status === 'present' ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>'} ${r.status.toUpperCase()}
+                </span>
+              </td>
+              <td style="font-weight: 700; font-size: 0.8rem; text-transform: uppercase;">PROF. ${(r.teacherName || 'SYSTEM').toUpperCase()}</td>
+            </tr>
+          `).join('');
+      }
+
+      window.applyFilters = () => {
+          const subject = document.getElementById("filter-subject").value;
+          const fromDate = document.getElementById("filter-from").value;
+          const toDate = document.getElementById("filter-to").value;
+
+          let filtered = [...rawRecords];
+          if (subject) filtered = filtered.filter(r => r.subject === subject);
+          if (fromDate) filtered = filtered.filter(r => r.date >= fromDate);
+          if (toDate) filtered = filtered.filter(r => r.date <= toDate);
+
+          render(filtered);
+      };
+
+      firebase.auth().onAuthStateChanged(user => { if(user) init(); });
+    });
+  </script>
+</body>
+</html>

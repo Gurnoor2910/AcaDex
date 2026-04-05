@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Repository | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .material-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-top: 2.5rem;
+    }
+    .material-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 2px solid var(--border-bold);
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .material-card:hover { transform: translate(-4px, -4px); box-shadow: 8px 8px 0px var(--border-bold); }
+    
+    .subject-tag {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-bold);
+      font-weight: 900;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <div class="container">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Knowledge Repository</h2>
+          <p style="color: var(--text-secondary);">Centralized academic assets, lecture transcripts, and structural resources</p>
+        </div>
+        <div id="admin-actions" style="display: none;">
+           <button class="btn btn-primary" onclick="window.location.href='add-material.html'"><i class="fas fa-plus"></i> Upload Material</button>
+        </div>
+      </div>
+
+      <!-- Discovery Filters -->
+      <div class="glass-card" style="margin-bottom: 2rem; border-width: 2px;">
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end;">
+            <div class="input-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                <label>Academic Program</label>
+                <select id="filter-course" onchange="loadSemesters()">
+                    <option value="">ALL PROGRAMS</option>
+                </select>
+            </div>
+            <div class="input-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                <label>Target Cycle (Semester)</label>
+                <select id="filter-semester">
+                    <option value="">ALL CYCLES</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" style="height: 50px; padding: 0 2rem;" onclick="renderMaterials()">APPLY DISCOVERY FILTERS</button>
+        </div>
+      </div>
+
+      <div id="materials-container" class="material-grid">
+         <div style="grid-column: 1/-1; text-align: center; padding: 5rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">
+             Synchronizing asset metadata...
+         </div>
+      </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/courses.js"></script>
+  <script src="../js/assignments.js"></script>
+  <script>
+    let allMaterials = [];
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      if (user && (user.role === 'admin' || user.role === 'faculty')) {
+          document.getElementById('admin-actions').style.display = 'block';
+      }
+      
+      try {
+          const courses = await ApiClient.get("/courses/all");
+          document.getElementById("filter-course").innerHTML = '<option value="">ALL PROGRAMS</option>' + 
+              courses.map(c => `<option value="${c.id}">${c.courseName.toUpperCase()}</option>`).join('');
+          
+          allMaterials = await MaterialService.getAll();
+          renderMaterials();
+      } catch(e) { console.error("Asset registry sync failure", e); }
+    });
+
+    window.loadSemesters = async () => {
+        const cid = document.getElementById("filter-course").value;
+        if (!cid) {
+            document.getElementById("filter-semester").innerHTML = '<option value="">ALL CYCLES</option>';
+            return;
+        }
+        try {
+            const sems = await CourseService.getSemesters(cid);
+            document.getElementById("filter-semester").innerHTML = '<option value="">ALL CYCLES</option>' + 
+                sems.map(s => `<option value="${s.semesterNumber}">CYCLE SEMESTER ${s.semesterNumber}</option>`).join('');
+        } catch(e) {}
+    }
+
+    window.renderMaterials = () => {
+        const cid = document.getElementById("filter-course").value;
+        const sem = document.getElementById("filter-semester").value;
+        
+        let filtered = allMaterials;
+        if (cid) filtered = filtered.filter(m => m.courseId === cid);
+        if (sem) filtered = filtered.filter(m => String(m.semester) === String(sem));
+
+        const container = document.getElementById("materials-container");
+        if (filtered.length === 0) {
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: var(--text-secondary); font-weight: 800; text-transform: uppercase;">No academic assets discovered in this cluster.</div>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(m => `
+            <div class="glass-card material-card">
+                <div>
+                    <div class="subject-tag">${(m.subjectName || 'GENERAL').toUpperCase()}</div>
+                    <h4 style="margin-bottom: 1rem; color: var(--primary); font-weight: 900; text-transform: uppercase; font-size: 1.1rem; line-height: 1.2;">${m.title || 'Untitled Asset'}</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; line-height: 1.6; text-transform: uppercase;">${m.description || 'No descriptive metadata provided by instruction personnel.'}</p>
+                </div>
+                <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--border-bold); padding-top: 1.25rem;">
+                    <span style="font-size: 0.7rem; color: var(--text-secondary); font-family: monospace; font-weight: 900;">${m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-GB') : '--'}</span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="${m.fileUrl}" target="_blank" class="btn btn-secondary" style="font-size: 0.7rem; padding: 0.5rem 1rem;">VIEW PDF</a>
+                        <a href="${m.fileUrl}" download class="btn btn-primary" style="font-size: 0.7rem; padding: 0.5rem 1rem;">DOWNLOAD</a>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+  </script>
+</body>
+</html>

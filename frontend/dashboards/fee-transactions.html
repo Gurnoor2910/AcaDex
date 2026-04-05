@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transaction Audit | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .trans-grid { display: grid; grid-template-columns: 380px 1fr; gap: 2.5rem; }
+    @media (max-width: 1100px) { .trans-grid { grid-template-columns: 1fr; } }
+    
+    .financial-card { border: 2px solid var(--border-bold); box-shadow: var(--shadow); background: var(--bg-secondary); }
+    .currency-value { font-size: 3rem; font-weight: 900; -webkit-text-stroke: 1.5px var(--border-bold); line-height: 1; }
+    
+    .ledger-row { 
+      display: flex; 
+      justify-content: space-between; 
+      padding: 1rem 0; 
+      border-bottom: 2px solid var(--border-bold); 
+      font-weight: 800; 
+      text-transform: uppercase; 
+      font-size: 0.75rem; 
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2 id="student-name">AUTHENTICATING...</h2>
+          <p style="color: var(--text-secondary);">Comprehensive institutional transaction audit trail and ledger history</p>
+        </div>
+        <button class="btn btn-secondary" onclick="window.history.back()">← RETURN TO DIRECTORY</button>
+      </div>
+
+      <div class="trans-grid">
+        <!-- Financial Summary -->
+        <div class="glass-card financial-card" style="padding: 2.5rem;">
+          <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900; font-size: 0.9rem;">Outstanding Liability</h3>
+          <div id="financial-stats">
+              <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Synchronizing ledger...</div>
+          </div>
+        </div>
+
+        <!-- Transaction Table -->
+        <div class="glass-card">
+          <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Payment History Logs</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Amount Verified</th>
+                  <th>Audit Mode</th>
+                  <th>Reference Notes</th>
+                  <th style="text-align: right;">Operations</th>
+                </tr>
+              </thead>
+              <tbody id="trans-body">
+                <tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary);">Scanning institutional payment records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/fees.js"></script>
+  <script>
+    let currentStudentId = null;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const params = new URLSearchParams(window.location.search);
+      currentStudentId = params.get("studentId");
+
+      if (!currentStudentId) {
+          alert("CRITICAL ERROR: No student identity specified for audit.");
+          window.location.href = "fees-management.html";
+          return;
+      }
+      
+      await loadDetails();
+    });
+
+    async function loadDetails() {
+        try {
+            const data = await FeesService.getStudentFees(currentStudentId);
+            document.getElementById("student-name").innerText = data.name.toUpperCase();
+            
+            const stats = document.getElementById("financial-stats");
+            const status = FeesService.getStatusInfo(data.pendingAmount, data.feesPaid);
+            const paid = data.totalFees - (data.pendingAmount || 0);
+            
+            stats.innerHTML = `
+              <div style="margin-bottom: 3rem;">
+                <div class="currency-value" style="color: ${data.pendingAmount > 0 ? 'var(--danger)' : 'var(--success)'};">
+                    ₹${data.pendingAmount.toLocaleString()}
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <span class="status-pill ${data.pendingAmount > 0 ? 'pill-danger' : 'pill-success'}">
+                        ${status.text.toUpperCase()}
+                    </span>
+                </div>
+              </div>
+              
+              <div style="border-top: 3px solid var(--border-bold); padding-top: 1rem;">
+                 <div class="ledger-row">
+                    <span style="color: var(--text-secondary);">TOTAL INSTITUTIONAL COMMITMENT</span>
+                    <span style="color: var(--text-primary);">₹${data.totalFees.toLocaleString()}</span>
+                 </div>
+                 <div class="ledger-row" style="border: none;">
+                    <span style="color: var(--text-secondary);">TOTAL VERIFIED PAYMENTS</span>
+                    <span style="color: var(--success);">₹${paid.toLocaleString()}</span>
+                 </div>
+              </div>
+            `;
+
+            const tbody = document.getElementById("trans-body");
+            if (!data.transactions || data.transactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-secondary);">No verified payment transactions discovered for this candidate.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.transactions.map(t => `
+               <tr>
+                 <td style="font-weight: 700; font-family: monospace;">${new Date(t.paymentDate).toLocaleDateString('en-GB')}</td>
+                 <td style="font-weight: 900; color: var(--success); font-size: 1.1rem;">₹${t.amountPaid.toLocaleString()}</td>
+                 <td style="font-weight: 800; font-size: 0.75rem; text-transform: uppercase;">${t.paymentMode}</td>
+                 <td style="font-size: 0.75rem; color: var(--text-secondary); max-width: 250px; text-transform: uppercase; font-weight: 600;">${t.notes || '---'}</td>
+                 <td style="text-align: right;">
+                   <button class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger); padding: 0.4rem 0.8rem; font-size: 0.7rem;" 
+                           onclick="deletePayment('${t.id}')">PURGE</button>
+                 </td>
+               </tr>
+            `).join('');
+
+        } catch(e) { 
+            console.error("Ledger sync failure", e);
+            document.getElementById("trans-body").innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 2rem;">REGISTRY ACCESS FAILURE: ${e.message.toUpperCase()}</td></tr>`;
+        }
+    }
+
+    async function deletePayment(tid) {
+        if (!confirm("CRITICAL: Permanently purge this verified payment record? This will instantly adjust the liability ledger.")) return;
+        try {
+            await FeesService.deleteTransaction(currentStudentId, tid);
+            loadDetails();
+        } catch(e) { alert("DATA DELETION FAILURE: " + e.message); }
+    }
+  </script>
+</body>
+</html>

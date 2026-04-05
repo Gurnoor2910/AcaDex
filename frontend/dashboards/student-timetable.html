@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Course Schedule | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/timetable.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Academic Timeline Audit</h2>
+          <p id="student-course" style="color: var(--text-secondary); font-weight: 800; text-transform: uppercase; font-size: 0.75rem;">Initializing course parameters...</p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div id="course-badge" style="display: none; background: var(--primary); color: var(--text-primary); padding: 0.4rem 1rem; font-weight: 900; border: 2px solid var(--border-bold); box-shadow: 3px 3px 0px var(--border-bold); text-transform: uppercase; font-size: 0.7rem;">[COURSE]</div>
+            <button id="scroll-today-btn" onclick="scrollToToday()" class="btn btn-primary"
+              style="display:none; padding: 0.4rem 1rem; font-size: 0.75rem; font-weight: 900; height: auto; width: auto;">
+              <i class="fas fa-crosshairs"></i> Today
+            </button>
+        </div>
+      </div>
+
+      <div class="scroll-hint" id="scroll-hint">
+        <i class="fas fa-arrows-left-right"></i>
+        Swipe left/right to see full schedule
+      </div>
+
+      <div class="glass-card" style="padding: 0; overflow: hidden; border-width: 2px;">
+        <div id="tt-grid-container">
+            <div style="text-align: center; padding: 5rem; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                Synchronizing with institutional schedule registry...
+            </div>
+        </div>
+      </div>
+
+      <div id="tt-grid-container-legend"></div>
+      
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/timetable.js"></script>
+  <script>
+    // Scrolls the timetable to center today's column
+    function scrollToToday() {
+        const wrapper = document.querySelector('.tt-wrapper');
+        const todayTh = document.querySelector('.tt-grid th.current-day');
+        if (!wrapper || !todayTh) return;
+        const colOffset = todayTh.offsetLeft - (wrapper.clientWidth / 2) + (todayTh.offsetWidth / 2);
+        wrapper.scrollTo({ left: colOffset, behavior: 'smooth' });
+    }
+
+    // Call this AFTER renderGridView() has run
+    function initScrollFeatures() {
+        // Show the Today button
+        const todayBtn = document.getElementById('scroll-today-btn');
+        if (todayBtn) todayBtn.style.display = 'inline-flex';
+
+        // Auto-scroll to today
+        setTimeout(scrollToToday, 300);
+
+        const wrapper = document.querySelector('.tt-wrapper');
+        if (!wrapper) return;
+
+        // Keyboard: Left/Right arrow keys scroll the grid
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') wrapper.scrollBy({ left: 160, behavior: 'smooth' });
+            if (e.key === 'ArrowLeft')  wrapper.scrollBy({ left: -160, behavior: 'smooth' });
+        });
+
+        // Desktop drag-to-scroll
+        let isDown = false, startX, scrollLeft;
+        wrapper.addEventListener('mousedown', e => {
+            isDown = true; wrapper.style.cursor = 'grabbing';
+            startX = e.pageX - wrapper.offsetLeft; scrollLeft = wrapper.scrollLeft;
+        });
+        wrapper.addEventListener('mouseleave', () => { isDown = false; wrapper.style.cursor = 'grab'; });
+        wrapper.addEventListener('mouseup',   () => { isDown = false; wrapper.style.cursor = 'grab'; });
+        wrapper.addEventListener('mousemove', e => {
+            if (!isDown) return;
+            e.preventDefault();
+            wrapper.scrollLeft = scrollLeft - (e.pageX - wrapper.offsetLeft - startX) * 1.5;
+        });
+        wrapper.style.cursor = 'grab';
+
+        // Hide mobile scroll hint after 3.5s
+        setTimeout(() => {
+            const hint = document.getElementById('scroll-hint');
+            if (hint) hint.style.display = 'none';
+        }, 3500);
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        checkAuth();
+        const user = JSON.parse(localStorage.getItem("acadex_user"));
+        
+        try {
+            const list = await TimetableService.getMyStudentTT();
+            const badge = document.getElementById("course-badge");
+            
+            if (list && list.length > 0) {
+               const courseName = list[0].course;
+               const sem = list[0].semester;
+               document.getElementById("student-course").innerText = `VERIFIED SCHEDULE FOR ${courseName.toUpperCase()}`;
+               badge.innerText = `SEM ${sem}`;
+               badge.style.display = "block";
+            } else {
+               document.getElementById("student-course").innerText = "NO SCHEDULE DISPATCHED FOR CURRENT ENROLLMENT.";
+            }
+            
+            TimetableService.renderGridView("tt-grid-container", list);
+            initScrollFeatures();
+        } catch(e) { 
+            console.error(e);
+            document.getElementById("tt-grid-container").innerHTML = `
+                <div style="text-align: center; padding: 4rem; color: var(--danger); font-weight: 900;">
+                    REGISTRY SYNC FAILURE: ${e.message.toUpperCase()}
+                </div>
+            `;
+        }
+    });
+  </script>
+</body>
+</html>

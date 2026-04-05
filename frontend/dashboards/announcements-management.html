@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulletin Control | Acadex</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .priority-pill { padding: 0.2rem 0.5rem; font-weight: 800; font-size: 0.65rem; border: 2px solid var(--border-bold); display: inline-block; text-transform: uppercase; }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <nav class="sidebar"></nav>
+
+    <main class="main-content">
+      <!-- Navbar auto-injected by layout.js -->
+
+      <div class="header-row">
+        <div>
+          <h2>Bulletin Control</h2>
+          <p style="color: var(--text-secondary);">Manage institutional communications and campus-wide narratives</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+             <button class="btn btn-primary" onclick="window.location.href='add-announcement.html'">ADD NEW BULLETIN</button>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <h3 style="margin-bottom: 2rem; text-transform: uppercase; font-weight: 900;">Communication Registry</h3>
+        <div class="table-container">
+          <table id="ann-table">
+            <thead>
+              <tr>
+                <th>Priority</th>
+                <th>Bulletin Title</th>
+                <th>Audience</th>
+                <th>Mapping</th>
+                <th>Timestamp</th>
+                <th>Status</th>
+                <th style="text-align: right;">Operations</th>
+              </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="7" style="text-align: center; padding: 2rem;">Fetching institutional bulletins...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="../js/api-client.js"></script>
+  <script src="../js/announcements.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      checkAuth();
+      const user = JSON.parse(localStorage.getItem("acadex_user"));
+      await loadAnnouncements(user);
+    });
+
+    async function loadAnnouncements(user) {
+        try {
+            const list = await AnnouncementService.getAll();
+            const tbody = document.querySelector("#ann-table tbody");
+            const now = new Date();
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No active bulletins found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(a => {
+                const created = new Date(a.createdAt).toLocaleDateString('en-GB');
+                const isExpired = a.expiryDate && new Date(a.expiryDate) < now;
+                const statusLabel = !a.isActive ? 'INACTIVE' : (isExpired ? 'EXPIRED' : 'ACTIVE');
+                const statusBg = !a.isActive ? 'var(--danger)' : (isExpired ? 'var(--text-secondary)' : 'var(--success)');
+                
+                const priorityColor = AnnouncementService.getPriorityColor(a.priority);
+                const canEdit = user.role === 'admin' || a.createdBy === user.uid;
+                
+                return `
+                    <tr id="ann-row-${a.id}">
+                        <td><span class="priority-pill" style="border-color: ${priorityColor}; color: ${priorityColor};">${a.priority || 'NORMAL'}</span></td>
+                        <td style="font-weight: 800; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.title}</td>
+                        <td style="font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">${a.targetAudience}</td>
+                        <td><span class="status-pill" style="background: var(--bg-primary);">${a.course || 'GLOBAL'}</span></td>
+                        <td style="font-weight: 600;">${created}</td>
+                        <td><span class="status-pill" style="background: ${statusBg}; color: white; border: none;">${statusLabel}</span></td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                ${canEdit ? `<button onclick="editAnn('${a.id}')" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;">EDIT</button>` : ''}
+                                ${user.role === 'admin' ? `<button onclick="deleteAnn('${a.id}')" class="btn btn-secondary" style="border-color: var(--danger); color: var(--danger); padding: 0.4rem 0.8rem; font-size: 0.7rem;">DELETE</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } catch(e) { console.error("Bulletin retrieval failure", e); }
+    }
+
+    function editAnn(id) { window.location.href = `edit-announcement.html?id=${id}`; }
+
+    async function deleteAnn(id) {
+        if(!confirm("CRITICAL: Permanently erase this bulletin from institutional records?")) return;
+        try {
+            await AnnouncementService.delete(id);
+            location.reload();
+        } catch(e) { alert("ERASURE FAILURE: " + e.message); }
+    }
+  </script>
+</body>
+</html>
