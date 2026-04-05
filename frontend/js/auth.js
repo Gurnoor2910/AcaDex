@@ -6,13 +6,6 @@
   window.AcadexAuthInitialized = true;
 
   const firebaseConfig = {
-  apiKey: "AIzaSyDAlTPzibRda5K-SpAw0mM1_fuJR0rpeEE",
-  authDomain: "acadex-2a0ae.firebaseapp.com",
-  projectId: "acadex-2a0ae",
-  storageBucket: "acadex-2a0ae.firebasestorage.app",
-  messagingSenderId: "337009149669",
-  appId: "1:337009149669:web:b62352defd8b0f0d51f60c",
-  measurementId: "G-4RY0VM1T19"
   };
 
 // Initialize Firebase
