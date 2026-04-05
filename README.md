@@ -2,6 +2,29 @@
 
 Acadex is a Student ERP system with a Flask backend, Firebase Firestore, and a Vanilla JS frontend with Chart.js analytics.
 
+---
+
+## Screenshots
+
+### Login Interface
+<p align="center">
+  <img src="assets/screenshots/login.png" width="80%" />
+</p>
+
+---
+
+### Admin Dashboard
+<p align="center">
+  <img src="assets/screenshots/dashboard.png" width="90%" />
+</p>
+
+---
+
+### Student Management Module
+<p align="center">
+  <img src="assets/screenshots/students.png" width="90%" />
+</p>
+
 ## Project Structure
 
 ```text
