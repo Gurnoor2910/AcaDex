@@ -1,6 +1,6 @@
 # Acadex - Cloud-Based Smart Campus System
 
-AcaDex is developed using Google Cloud Platform (GCP) and Flask. The system allows users to enter student details through a web interface, which communicates securely with a backend API deployed on Cloud Run. The data is validated and stored in Cloud Firestore. The frontend is hosted on Cloud Storage, ensuring public accessibility, while the backend and database remain secure. This cloud-native architecture ensures better scalability, security, and cost efficiency.
+AcaDex is developed using Google Cloud Platform (GCP) and Flask. The system allows users to enter student details through a web interface, which communicates securely with a backend API deployed on Cloud Run. The data is validated and stored in Cloud Firestore. The frontend is hosted on Cloud Run, ensuring public accessibility, while the backend and database remain secure. This cloud-native architecture ensures better scalability, security, and cost efficiency.
 
 ---
 
