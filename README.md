@@ -1,4 +1,4 @@
-# Acadex - Student ERP System
+# Acadex - Cloud-Based Smart Campus System
 
 Acadex is a Student ERP system with a Flask backend, Firebase Firestore, and a Vanilla JS frontend with Chart.js analytics.
 
