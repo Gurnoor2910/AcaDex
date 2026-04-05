@@ -1,6 +1,6 @@
 # Acadex - Cloud-Based Smart Campus System
 
-Acadex is a Student ERP system with a Flask backend, Firebase Firestore, and a Vanilla JS frontend with Chart.js analytics.
+AcaDex is developed using Google Cloud Platform (GCP) and Flask. The system allows users to enter student details through a web interface, which communicates securely with a backend API deployed on Cloud Run. The data is validated and stored in Cloud Firestore. The frontend is hosted on Cloud Storage, ensuring public accessibility, while the backend and database remain secure. This cloud-native architecture ensures better scalability, security, and cost efficiency.
 
 ---
 
