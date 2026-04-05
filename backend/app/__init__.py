@@ -56,7 +56,7 @@ def create_app():
 
         firebase_admin.initialize_app(
             cred,
-            {"projectId": os.environ.get("FIREBASE_PROJECT_ID", "acadex-2a0ae")},
+            {)},
         )
 
     from app.routes.admin import admin_bp
